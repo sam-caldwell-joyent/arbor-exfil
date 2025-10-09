@@ -1,0 +1,47 @@
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Go binaries and build outputs
+/arbor-exfil
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Common build dirs
+bin/
+build/
+dist/
+out/
+coverage/
+
+# Coverage and profiling
+coverage.out
+*.cover
+*.cov
+*.coverprofile
+profile.out
+*.prof
+cpu.prof
+mem.prof
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Caches
+.cache/
+
