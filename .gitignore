@@ -44,4 +44,5 @@ mem.prof
 
 # Caches
 .cache/
-
+.gocache/
+.gomodcache/
