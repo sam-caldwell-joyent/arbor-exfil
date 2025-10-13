@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 		if cfgUser == "" {
 			return errors.New("--user is required for SSH authentication")
 		}
-		if strings.TrimSpace(cfgUser) == "admin" {
+		if adminUser := strings.TrimSpace(cfgUser); adminUser == "admin" || adminUser == "root" {
 			// Disallow admin account usage
 			return errAdminUser
 		}
@@ -51,13 +51,20 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
-		defer outFile.Close()
+		defer func(outFile *os.File) {
+			err := outFile.Close()
+			if err != nil {
+				panic(err)
+			}
+		}(outFile)
 
 		// Header in output
 		writeHeader(outFile, mf)
 
 		// Connect SSH
-		client, err := dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase, cfgKnownHosts, cfgStrictHost, cfgConnTimeout)
+		client, err := dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase, cfgKnownHosts,
+			cfgStrictHost, cfgConnTimeout)
+
 		if err != nil {
 			return fmt.Errorf("ssh connection failed: %w", err)
 		}
@@ -86,7 +93,9 @@ var rootCmd = &cobra.Command{
 				if client != nil {
 					_ = client.Close()
 				}
-				client, err = dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase, cfgKnownHosts, cfgStrictHost, cfgConnTimeout)
+				client, err = dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase,
+					cfgKnownHosts, cfgStrictHost, cfgConnTimeout)
+
 				if err != nil {
 					return fmt.Errorf("reconnect failed after timeout: %w", err)
 				}
