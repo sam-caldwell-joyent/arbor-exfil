@@ -70,6 +70,7 @@ Output:
 - Authentication supports: password, private key, or SSH agent if available.
 - By default, strict host key checking is enabled and reads `--known-hosts`.
 - If you don’t have `known_hosts` or are testing in a lab, set `--strict-host-key=false`.
-- Commands are executed in separate SSH sessions over one connection. If a command times out, the client reconnects 
-  once and continues.
-
+- Commands execute in a single persistent SSH session so state (e.g., working directory, env) persists across commands.
+- A PTY is requested for the session so commands that expect a TTY (colorized output, full-screen tools) behave the same as a real terminal.
+- If a command times out, the SSH connection is closed, reconnected once, and a new persistent session is established
+  before continuing with remaining commands.

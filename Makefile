@@ -8,7 +8,7 @@ PKGS := ./...
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
 LDFLAGS := -X 'arbor-exfil/cmd.Version=$(VERSION)'
 
-.PHONY: all build test lint fmt tidy clean coverage help tag/patch tag/minor tag/major
+.PHONY: all build test lint fmt tidy clean coverage check-coverage help tag/patch tag/minor tag/major
 
 all: lint test build ## Default: lint, test, build
 
@@ -18,8 +18,15 @@ build: $(BIN_DIR) ## Build the binary into bin/
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
-test: ## Run unit tests with coverage
+TEST_COVER_MIN ?= 80.0
+
+test: ## Run unit tests with coverage and enforce minimum threshold
 	$(GO) test $(PKGS) -cover -coverprofile=coverage.out
+	@$(MAKE) check-coverage
+
+
+check-coverage: ## Enforce minimum test coverage threshold ($(TEST_COVER_MIN)%)
+	@$(GO) tool cover -func=coverage.out | awk -v min=$(TEST_COVER_MIN) '/^total:/ { gsub("%","",$$3); cov=$$3+0; if (cov < min) { printf("Coverage %.1f%% is below threshold %.1f%%\n", cov, min); exit 1 } else { printf("Coverage OK: %.1f%% (min %.1f%%)\n", cov, min) } }'
 
 coverage: test ## Show coverage summary (requires coverage.out from `make test`)
 	$(GO) tool cover -func=coverage.out

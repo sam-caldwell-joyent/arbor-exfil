@@ -1,8 +1,14 @@
 name: Example Arbor Exfil
 description: Run read-only ArbOS commands to collect diagnostics
 commands:
-  - command: show version
-  - command: show device status
-  - command: show routes
+  - command: shell
+    timeout: 45s
+  - command: system show version
+    timeout: 45s
+  - command: system show device status
+    timeout: 45s
+  - command: system show routes
+    timeout: 45s
+  - command: system show config
     timeout: 45s
 
