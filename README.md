@@ -14,7 +14,7 @@ make build
 ```
 ./arbor-exfil --target tms.example.com:22 \
               --user arbor \
-              --manifest manifests/sample.yaml \
+              --manifest manifests/inspection_report.yaml \
               --out output.txt \
               --known-hosts ~/.ssh/known_hosts`
 ```
