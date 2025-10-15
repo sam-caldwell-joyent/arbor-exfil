@@ -41,3 +41,22 @@ func TestRunRemoteCommand_CommandError_NoExitCode_Dedicated(t *testing.T) {
     require.Equal(t, "oops\n", string(out))
 }
 
+// A session that exposes LastExitCode should have its code preferred even when
+// CombinedOutput returns no error (used by persistent PTY session path).
+type _lastExitSession struct{ out []byte; code int }
+
+func (s *_lastExitSession) CombinedOutput(cmd string) ([]byte, error) { return s.out, nil }
+func (s *_lastExitSession) Close() error { return nil }
+func (s *_lastExitSession) LastExitCode() int { return s.code }
+
+type _lastExitClient struct{ sess *_lastExitSession }
+
+func (c *_lastExitClient) NewSession() (session, error) { return c.sess, nil }
+
+func TestRunRemoteCommand_PrefersLastExitCode(t *testing.T) {
+    s := &_lastExitSession{out: []byte("Z\n"), code: 42}
+    out, code, err := runRemoteCommand(&_lastExitClient{sess: s}, "cmd", 0)
+    require.NoError(t, err)
+    require.Equal(t, 42, code)
+    require.Equal(t, "Z\n", string(out))
+}

@@ -27,3 +27,15 @@ func TestLoadSigner_RSAKey_Success_Dedicated(t *testing.T) {
     require.NotNil(t, s.PublicKey())
 }
 
+func TestLoadSigner_UnencryptedKey_WithPassphrase_Fails(t *testing.T) {
+    tmp := t.TempDir()
+    // Generate a small RSA key for testing (unencrypted)
+    key, err := rsa.GenerateKey(rand.Reader, 1024)
+    require.NoError(t, err)
+    b := x509.MarshalPKCS1PrivateKey(key)
+    pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: b})
+    p := writeTemp(t, tmp, "id_rsa", string(pemBytes))
+    // Provide a passphrase; parsing should fail for an unencrypted key
+    _, err = loadSigner(p, "pass")
+    require.Error(t, err)
+}

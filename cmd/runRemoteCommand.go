@@ -26,17 +26,21 @@ func runRemoteCommand(client sessionClient, cmd string, timeout time.Duration) (
 				panic(err)
 			}
 		}(currSession)
-		b, err := currSession.CombinedOutput(cmd)
-		if err == nil {
-			return result{b, 0, nil}
-		}
-		// Try to derive exit status
-		exit := -1
-		var ee *ssh.ExitError
-		if errors.As(err, &ee) {
-			exit = ee.ExitStatus()
-		}
-		return result{b, exit, err}
+        b, err := currSession.CombinedOutput(cmd)
+        // Prefer exit code via optional interface (persistent sessions)
+        if ec, ok := currSession.(interface{ LastExitCode() int }); ok {
+            return result{b, ec.LastExitCode(), err}
+        }
+        if err == nil {
+            return result{b, 0, nil}
+        }
+        // Try to derive exit status from ssh.ExitError
+        exit := -1
+        var ee *ssh.ExitError
+        if errors.As(err, &ee) {
+            exit = ee.ExitStatus()
+        }
+        return result{b, exit, err}
 	}
 
 	if timeout <= 0 {

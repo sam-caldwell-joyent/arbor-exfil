@@ -118,6 +118,48 @@ commands:
     require.Contains(t, out, "out2\n---8<---")
 }
 
+func TestRootExecute_DialsOnceForMultipleCommands(t *testing.T) {
+    resetConfig()
+    // Stub SSH dial and command execution
+    origDial := dialSSHFunc
+    origRun := runRemoteCommandFunc
+    t.Cleanup(func() { dialSSHFunc = origDial; runRemoteCommandFunc = origRun })
+
+    dialCalls := 0
+    dialSSHFunc = func(target, user, password, keyPath, passphrase, knownHostsPath string, strictHost bool, dialTimeout time.Duration) (*ssh.Client, error) {
+        dialCalls++
+        return nil, nil
+    }
+
+    // Each command should run via a new session on the same client
+    runRemoteCommandFunc = func(client sessionClient, cmd string, timeout time.Duration) ([]byte, int, error) {
+        return []byte("ok\n"), 0, nil
+    }
+
+    tmp := t.TempDir()
+    manifestPath := writeTemp(t, tmp, "m.yaml", `
+name: N
+description: D
+commands:
+  - command: cmd1
+  - command: cmd2
+`)
+    outPath := filepath.Join(tmp, "out.txt")
+
+    rootCmd.SetArgs([]string{
+        "--target", "127.0.0.1:22",
+        "--user", "tester",
+        "--manifest", manifestPath,
+        "--out", outPath,
+        "--strict-host-key=false",
+    })
+
+    err := rootCmd.Execute()
+    require.NoError(t, err)
+    // Ensure exactly one SSH dial for multiple commands
+    require.Equal(t, 1, dialCalls)
+}
+
 func TestRootExecute_TimeoutReconnect(t *testing.T) {
     resetConfig()
     origDial := dialSSHFunc

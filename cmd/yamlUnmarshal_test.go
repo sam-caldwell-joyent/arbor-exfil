@@ -20,3 +20,9 @@ func TestYAML_Unmarshal_Errors_Dedicated(t *testing.T) {
     require.Error(t, err)
 }
 
+func TestCommandEntry_UnmarshalYAML_DecodeError(t *testing.T) {
+    var ce commandEntry
+    // A scalar where a mapping is expected should cause Decode error inside UnmarshalYAML
+    err := yamlUnmarshalImpl([]byte("- 123"), &[]commandEntry{ce})
+    require.Error(t, err)
+}

@@ -1,6 +1,9 @@
 package cmd
 
 import (
+    "fmt"
+    "net"
+    "os"
     "crypto/rand"
     "crypto/rsa"
     "crypto/x509"
@@ -35,3 +38,20 @@ func TestDialSSH_AuthMethodsAssembly_Dedicated(t *testing.T) {
     require.Error(t, err)
 }
 
+func TestDialSSH_AgentSocketPresent_Dedicated(t *testing.T) {
+    // Create a dummy UNIX socket to simulate SSH agent (use short path in /tmp)
+    sock := filepath.Join(os.TempDir(), fmt.Sprintf("agent-%d.sock", time.Now().UnixNano()))
+    l, err := net.Listen("unix", sock)
+    require.NoError(t, err)
+    defer l.Close()
+    defer os.Remove(sock)
+    // Accept one connection in the background
+    done := make(chan struct{})
+    go func() { defer close(done); conn, _ := l.Accept(); if conn != nil { time.Sleep(10 * time.Millisecond); _ = conn.Close() } }()
+
+    t.Setenv("SSH_AUTH_SOCK", sock)
+    // Use strictHost=false to avoid known_hosts requirements; expect dial error on tcp connect
+    _, err = dialSSH("127.0.0.1:1", "u", "p", "", "", "", false, 50*time.Millisecond)
+    require.Error(t, err)
+    <-done
+}

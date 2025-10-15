@@ -61,9 +61,9 @@ var rootCmd = &cobra.Command{
 		// Header in output
 		writeHeader(outFile, mf)
 
-		// Connect SSH
-		client, err := dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase, cfgKnownHosts,
-			cfgStrictHost, cfgConnTimeout)
+        // Connect SSH
+        client, err := dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase, cfgKnownHosts,
+            cfgStrictHost, cfgConnTimeout)
 
 		if err != nil {
 			return fmt.Errorf("ssh connection failed: %w", err)
@@ -74,33 +74,60 @@ var rootCmd = &cobra.Command{
 			}
 		}()
 
-		// Execute commands
-		for i, c := range mf.Commands {
-			title := fmt.Sprintf("[%d/%d] %s", i+1, len(mf.Commands), c.line())
-			_, _ = fmt.Fprintf(os.Stderr, "Executing %s\n", title)
+        // Establish one persistent session over the SSH connection (if client is non-nil).
+        // In unit tests, dial may be stubbed to return nil; in that case, fall back
+        // to the wrapper and the test's run stub will drive behavior.
+        var (
+            ps         *persistentShell
+            sessClient sessionClient
+        )
+        if client != nil {
+            ps, err = newPersistentShell(client)
+            if err != nil {
+                return fmt.Errorf("failed to start persistent session: %w", err)
+            }
+            defer func() { _ = ps.Close() }()
+            sessClient = persistentSessionClient{ps}
+        } else {
+            sessClient = sshClientWrapper{client}
+        }
 
-			cmdTimeout := c.perCommandTimeout(cfgTimeout)
-			out, exitCode, runErr := runRemoteCommandFunc(sshClientWrapper{client}, c.line(), cmdTimeout)
+        // Execute commands
+        for i, c := range mf.Commands {
+            title := fmt.Sprintf("[%d/%d] %s", i+1, len(mf.Commands), c.line())
+            _, _ = fmt.Fprintf(os.Stderr, "Executing %s\n", title)
+
+            cmdTimeout := c.perCommandTimeout(cfgTimeout)
+            out, exitCode, runErr := runRemoteCommandFunc(sessClient, c.line(), cmdTimeout)
 
 			// Write section to output file
 			if err := writeCommandSection(outFile, c, out, exitCode, runErr, cmdTimeout); err != nil {
 				return fmt.Errorf("failed writing output: %w", err)
 			}
 
-			// On timeout, try to reconnect once and continue
-			if errors.Is(runErr, context.DeadlineExceeded) {
-				_, _ = fmt.Fprintln(os.Stderr, "Command timed out; reconnecting...")
-				if client != nil {
-					_ = client.Close()
-				}
-				client, err = dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase,
-					cfgKnownHosts, cfgStrictHost, cfgConnTimeout)
+            // On timeout, try to reconnect once and continue
+            if errors.Is(runErr, context.DeadlineExceeded) {
+                _, _ = fmt.Fprintln(os.Stderr, "Command timed out; reconnecting...")
+                if ps != nil { _ = ps.Close() }
+                if client != nil { _ = client.Close() }
+                client, err = dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase,
+                    cfgKnownHosts, cfgStrictHost, cfgConnTimeout)
 
-				if err != nil {
-					return fmt.Errorf("reconnect failed after timeout: %w", err)
-				}
-			}
-		}
+                if err != nil {
+                    return fmt.Errorf("reconnect failed after timeout: %w", err)
+                }
+                // Recreate session client after reconnect
+                if client != nil {
+                    ps, err = newPersistentShell(client)
+                    if err != nil {
+                        return fmt.Errorf("failed to start persistent session after reconnect: %w", err)
+                    }
+                    sessClient = persistentSessionClient{ps}
+                } else {
+                    sessClient = sshClientWrapper{client}
+                }
+            }
+        }
 
 		_, _ = fmt.Fprintf(os.Stderr, "Done. Output written to %s\n", cfgOutPath)
 		return nil

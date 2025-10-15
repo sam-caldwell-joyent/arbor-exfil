@@ -59,6 +59,48 @@ commands:
     require.NoError(t, err)
 }
 
+// Generic error path: Execute() should print to stderr and call exit 1 when
+// root command returns a non-admin error (e.g., missing required flags).
+func TestExecute_GenericError_Exit1(t *testing.T) {
+    resetConfig()
+
+    // Set args missing target to force validation error
+    tmp := t.TempDir()
+    manifestPath := writeTemp(t, tmp, "m.yaml", `
+name: N
+description: D
+commands:
+  - command: x
+`)
+    rootCmd.SetArgs([]string{
+        "--user", "tester",
+        "--manifest", manifestPath,
+        "--out", filepath.Join(tmp, "out.txt"),
+        "--strict-host-key=false",
+    })
+
+    // Capture stderr
+    oldStderr := os.Stderr
+    r, w, _ := os.Pipe()
+    os.Stderr = w
+    defer func() { os.Stderr = oldStderr }()
+
+    // Stub exit
+    code := 0
+    origExit := exitFunc
+    exitFunc = func(c int) { code = c }
+    defer func() { exitFunc = origExit }()
+
+    Execute()
+
+    _ = w.Close()
+    var buf bytes.Buffer
+    _, _ = buf.ReadFrom(r)
+    errOut := buf.String()
+    require.Contains(t, errOut, "--target is required")
+    require.Equal(t, 1, code)
+}
+
 // Sad path: admin user should print to stdout and call exit 1
 func TestExecute_AdminUser_StdoutExit1_Dedicated(t *testing.T) {
     resetConfig()
@@ -101,4 +143,3 @@ commands:
     require.Contains(t, out, "admin user account cannot be used")
     require.Equal(t, 1, code)
 }
-
