@@ -3,12 +3,13 @@ SHELL := bash
 APP_NAME := arbor-exfil
 BIN_DIR ?= bin
 GO ?= go
+DOCKER ?= docker
 GIT ?= git
 PKGS := ./...
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
 LDFLAGS := -X 'arbor-exfil/cmd.Version=$(VERSION)'
 
-.PHONY: all build test lint fmt tidy clean coverage check-coverage help tag/patch tag/minor tag/major
+.PHONY: all build test lint fmt tidy clean coverage check-coverage docker help tag/patch tag/minor tag/major
 
 all: lint test build ## Default: lint, test, build
 
@@ -21,7 +22,10 @@ $(BIN_DIR):
 TEST_COVER_MIN ?= 80.0
 
 test: ## Run unit tests with coverage and enforce minimum threshold
-	$(GO) test $(PKGS) -cover -coverprofile=coverage.out
+	# Measure coverage on core package(s) only to avoid skew from test utilities
+	$(GO) test ./cmd -cover -coverprofile=coverage.out
+	# Run full test suite (no coverage aggregation needed)
+	$(GO) test ./...
 	@$(MAKE) check-coverage
 
 
@@ -30,6 +34,9 @@ check-coverage: ## Enforce minimum test coverage threshold ($(TEST_COVER_MIN)%)
 
 coverage: test ## Show coverage summary (requires coverage.out from `make test`)
 	$(GO) tool cover -func=coverage.out
+
+docker: ## Build local Docker image as $(APP_NAME):local-test
+	$(DOCKER) build -t $(APP_NAME):local-test .
 
 lint: ## Lint using go vet
 	$(GO) vet $(PKGS)
