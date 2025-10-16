@@ -26,23 +26,24 @@ func TestEndToEnd_WithLocalTestServer(t *testing.T) {
 
     resetConfig()
 
-    // Prepare output file path
+    // Prepare output file path and an ad-hoc manifest with titles
     tmp := t.TempDir()
     outPath := filepath.Join(tmp, "out.txt")
-    // Use repo manifest
-    var mfPath string
-    for _, cand := range []string{
-        filepath.Join("manifests", "inspection_report.yaml"),
-        filepath.Join("..", "manifests", "inspection_report.yaml"),
-    } {
-        if _, err := os.Stat(cand); err == nil {
-            mfPath = cand
-            break
-        }
-    }
-    if mfPath == "" {
-        t.Fatalf("manifest not found in expected locations")
-    }
+    mfPath := writeTemp(t, tmp, "inspection.yaml", `
+name: E2E Test
+description: Test commands
+commands:
+  - title: First
+    command: cmd1
+  - title: Second
+    command: cmd2
+  - title: Third
+    command: cmd3
+  - title: Fourth
+    command: cmd4
+  - title: Fifth
+    command: cmd5
+`)
 
     // Set CLI args
     rootCmd.SetArgs([]string{
@@ -60,7 +61,7 @@ func TestEndToEnd_WithLocalTestServer(t *testing.T) {
     b, err := os.ReadFile(outPath)
     if err != nil { t.Fatalf("read out: %v", err) }
     s := string(b)
-    // We expect five commands in the default manifest
+    // We expect five commands in our E2E manifest
     if strings.Count(s, "Exit Code: 0") < 5 {
         t.Fatalf("expected at least 5 successful exit codes, got %d", strings.Count(s, "Exit Code: 0"))
     }

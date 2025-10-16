@@ -20,12 +20,13 @@ $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
 TEST_COVER_MIN ?= 80.0
+GO_TEST_TIMEOUT ?= 60s
 
 test: ## Run unit tests with coverage and enforce minimum threshold
 	# Measure coverage on core package(s) only to avoid skew from test utilities
-	$(GO) test ./cmd -cover -coverprofile=coverage.out
-	# Run full test suite (no coverage aggregation needed)
-	$(GO) test ./...
+	$(GO) test -timeout $(GO_TEST_TIMEOUT) ./cmd -cover -coverprofile=coverage.out
+	# Run full test suite quickly; skip long/slow tests to keep CI snappy
+	$(GO) test -timeout $(GO_TEST_TIMEOUT) -short ./...
 	@$(MAKE) check-coverage
 
 

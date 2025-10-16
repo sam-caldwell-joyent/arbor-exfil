@@ -118,6 +118,49 @@ commands:
     require.Contains(t, out, "out2\n---8<---")
 }
 
+func TestRootExecute_WritesTitleHeading(t *testing.T) {
+    resetConfig()
+    origDial := dialSSHFunc
+    origRun := runRemoteCommandFunc
+    t.Cleanup(func() { dialSSHFunc = origDial; runRemoteCommandFunc = origRun })
+
+    dialSSHFunc = func(target, user, password, keyPath, passphrase, knownHostsPath string, strictHost bool, dialTimeout time.Duration) (*ssh.Client, error) {
+        return nil, nil
+    }
+    runRemoteCommandFunc = func(client sessionClient, cmd string, timeout time.Duration) ([]byte, int, error) {
+        return []byte("ok\n"), 0, nil
+    }
+
+    tmp := t.TempDir()
+    manifestPath := writeTemp(t, tmp, "m.yaml", `
+name: Titled
+description: Has titles
+commands:
+  - title: Greeting
+    command: echo
+    args: ["hi"]
+`)
+    outPath := filepath.Join(tmp, "out.txt")
+    rootCmd.SetArgs([]string{
+        "--target", "127.0.0.1:22",
+        "--user", "tester",
+        "--manifest", manifestPath,
+        "--out", outPath,
+        "--strict-host-key=false",
+    })
+    err := rootCmd.Execute()
+    require.NoError(t, err)
+    b, err := os.ReadFile(outPath)
+    require.NoError(t, err)
+    s := string(b)
+    require.Contains(t, s, "Title: Greeting\n")
+    require.Contains(t, s, "Command: echo hi\n")
+    // Ensure title appears before command
+    require.Less(t, strings.Index(s, "Title: Greeting\n"), strings.Index(s, "Command: echo hi\n"))
+    // Ensure only one section separator ('-') was written for the titled section
+    require.Equal(t, 1, strings.Count(s, strings.Repeat("-", 80)))
+}
+
 func TestRootExecute_DialsOnceForMultipleCommands(t *testing.T) {
     resetConfig()
     // Stub SSH dial and command execution
@@ -278,6 +321,36 @@ commands: []
     err = rootCmd.Execute()
     require.Error(t, err)
     require.Contains(t, err.Error(), "manifest contains no commands")
+}
+
+func TestRootExecute_DialError(t *testing.T) {
+    resetConfig()
+    // Force dial error
+    origDial := dialSSHFunc
+    t.Cleanup(func() { dialSSHFunc = origDial })
+    dialSSHFunc = func(target, user, password, keyPath, passphrase, knownHostsPath string, strictHost bool, dialTimeout time.Duration) (*ssh.Client, error) {
+        return nil, fmt.Errorf("boom")
+    }
+
+    tmp := t.TempDir()
+    manifestPath := writeTemp(t, tmp, "m.yaml", `
+name: N
+description: D
+commands:
+  - command: x
+`)
+    outPath := filepath.Join(tmp, "out.txt")
+
+    rootCmd.SetArgs([]string{
+        "--target", "127.0.0.1:22",
+        "--user", "tester",
+        "--manifest", manifestPath,
+        "--out", outPath,
+        "--strict-host-key=false",
+    })
+    err := rootCmd.Execute()
+    require.Error(t, err)
+    require.Contains(t, err.Error(), "ssh connection failed")
 }
 
 func TestShellQuote(t *testing.T) {

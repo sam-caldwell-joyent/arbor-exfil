@@ -1,22 +1,26 @@
 package cmd
 
 import (
-	"bufio"
-	"fmt"
-	"io"
-	"strings"
-	"time"
+    "bufio"
+    "fmt"
+    "io"
+    "strings"
+    "time"
 )
 
 // writeCommandSection writes one command's results
 func writeCommandSection(w io.Writer, c commandEntry, out []byte, exitCode int, runErr error, timeout time.Duration) error {
-	bw := bufio.NewWriter(w)
-	_, _ = fmt.Fprintln(bw, strings.Repeat("-", 80))
-	_, _ = fmt.Fprintf(bw, "Command: %s\n", c.line())
-	if timeout > 0 {
-		_, _ = fmt.Fprintf(bw, "Timeout: %s\n", timeout.String())
-	}
-	_, _ = fmt.Fprintf(bw, "Exit Code: %d\n", exitCode)
+    bw := bufio.NewWriter(w)
+    // If a title was already written as the section heading before execution,
+    // avoid duplicating the separator here. Otherwise, add a separator line.
+    if strings.TrimSpace(c.Title) == "" {
+        _, _ = fmt.Fprintln(bw, strings.Repeat("-", 80))
+    }
+    _, _ = fmt.Fprintf(bw, "Command: %s\n", c.line())
+    if timeout > 0 {
+        _, _ = fmt.Fprintf(bw, "Timeout: %s\n", timeout.String())
+    }
+    _, _ = fmt.Fprintf(bw, "Exit Code: %d\n", exitCode)
 	if runErr != nil {
 		_, _ = fmt.Fprintf(bw, "Error: %v\n", runErr)
 	}

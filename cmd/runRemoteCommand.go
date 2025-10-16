@@ -20,12 +20,8 @@ func runRemoteCommand(client sessionClient, cmd string, timeout time.Duration) (
 		if err != nil {
 			return result{nil, -1, err}
 		}
-		defer func(thisSession session) {
-			err := thisSession.Close()
-			if err != nil {
-				panic(err)
-			}
-		}(currSession)
+    // Best-effort close; ignore errors to avoid panics under EOF/exit-status-only flows
+    defer func(thisSession session) { _ = thisSession.Close() }(currSession)
         b, err := currSession.CombinedOutput(cmd)
         // Prefer exit code via optional interface (persistent sessions)
         if ec, ok := currSession.(interface{ LastExitCode() int }); ok {
