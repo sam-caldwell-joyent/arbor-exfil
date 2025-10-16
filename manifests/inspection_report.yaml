@@ -1,14 +1,141 @@
-name: Example Arbor Exfil
+---
+#
+# ToDo: Add Tunnelling Feature to tunnel from leader to each node.
+#
+#
+name: Arbor Inspection Report
 description: Run read-only ArbOS commands to collect diagnostics
 commands:
-  - command: shell
+  - title: system version
+    command: system version
     timeout: 45s
-  - command: system show version
+  - title:
+    command: system files show
     timeout: 45s
-  - command: system show device status
+  - title: ip access show
+    command: ip access show
     timeout: 45s
-  - command: system show routes
+  - title: ip arp show
+    command: ip arp show
     timeout: 45s
-  - command: system show config
+  - title: ip interfaces show
+    command: ip interfaces show
+    timeout: 45s
+  - title: ip route show
+    command: ip route show
+    timeout: 45s
+  - title: ip tee show
+    command: ip tee show
+    timeout: 45s
+  - title: services aaa show
+    command: services aaa show
+    timeout: 45s
+  - title: services dns show
+    command: services dns show
+    timeout: 45s
+  - title: services dns hosts
+    command: services dns hosts
+    timeout: 45s
+  - title: services http certificate
+    command: services http certificate
+    timeout: 45s
+  - title: services logging show
+    command: services logging show
+    timeout: 45s
+  - title:  services ntp show
+    command: services ntp show
+    timeout: 45s
+  - title: services sp show
+    command: services sp show
+    timeout: 45s
+  - title: services ssh show
+    command: services ssh show
+    timeout: 45s
+  - title: services ssh key show
+    command: services ssh key show
+    timeout: 45s
+  - title: system appliance
+    command: system appliance
+    timeout: 45s
+  - title: system attributes show
+    command: system attributes show
+    timeout: 45s
+  - title: system banner
+    command: system banner
+    timeout: 45s
+  - title: system benchmark show
+    command: system benchmark show
+    timeout: 45s
+  - title: system cores
+    command: system cores
+    timeout: 45s
+  - title: system disks show
+    command: system disks show
+    timeout: 45s
+  - title: system disks firmware show
+    command: system disks firmware show
+    timeout: 45s
+  - title: system files show
+    command: system files show
+    timeout: 45s
+  - title: system files directory disk
+    command: system files directory disk
+    timeout: 45s
+  - title: system files directory cdrom
+    command: system files directory cdrom
+    timeout: 45s
+  - title: system files directory usb
+    command: system files directory usb
+    timeout: 45s
+  - title: system files directory flash
+    command: system files directory flash
+    timeout: 45s
+  - title: system fips
+    command: system fips
+    timeout: 45s
+  - title: system hardware
+    command: system hardware
+    timeout: 45s
+  - title: system login-banner
+    command: system login-banner
+    timeout: 45s
+  - title: system lines
+    command: system lines
+    timeout: 45s
+  - title: system name
+    command: system name
+    timeout: 45s
+  - title: system processes
+    command: system processes
+    timeout: 45s
+  - title: system show
+    command: system show
+    timeout: 45s
+  - title: system timezone
+    command: system timezone
+    timeout: 45s
+  - title:
+    command:
+    timeout: 45s
+  - title:
+    command:
+    timeout: 45s
+  - title:
+    command:
+    timeout: 45s
+  - title:
+    command:
+    timeout: 45s
+  - title:
+    command:
+    timeout: 45s
+  - title:
+    command:
+    timeout: 45s
+  - title:
+    command:
+    timeout: 45s
+  - title:
+    command:
     timeout: 45s
 
