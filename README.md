@@ -41,10 +41,13 @@ Example:
 name: Example Arbor Exfil
 description: Run read-only ArbOS commands to collect diagnostics
 commands:
-  - command: show version
+  - title: Show version
+    command: show version
     args: []
-  - command: show device status
-  - command: show routes
+  - title: Show device status
+    command: show device status
+  - title: Show routes
+    command: show routes
     timeout: 45s
 ```
 
