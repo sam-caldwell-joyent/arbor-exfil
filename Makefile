@@ -39,7 +39,7 @@ docker: ## Build local Docker image as $(APP_NAME):local-test
 	$(DOCKER) build -t $(APP_NAME):local-test .
 
 lint: ## Lint using go vet
-	$(GO) vet $(PKGS)
+	$(GO) vet -v $(PKGS)
 
 fmt: ## Format sources
 	$(GO) fmt $(PKGS)
