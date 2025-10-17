@@ -83,8 +83,10 @@ name: Test Run
 description: Run two commands
 commands:
   - command: echo
+    shell: /bin/sh
     args: ["hello world", "a'b"]
   - command: whoami
+    shell: /bin/sh
 `)
     outPath := filepath.Join(tmp, "out.txt")
 
@@ -118,6 +120,54 @@ commands:
     require.Contains(t, out, "out2\n---8<---")
 }
 
+func TestRootExecute_UsesManifestSSHHostDefaults(t *testing.T) {
+    resetConfig()
+    // Capture target/user passed to dial
+    var gotTarget, gotUser string
+    origDial := dialSSHFunc
+    origRun := runRemoteCommandFunc
+    t.Cleanup(func() { dialSSHFunc = origDial; runRemoteCommandFunc = origRun })
+
+    dialSSHFunc = func(target, user, password, keyPath, passphrase, knownHostsPath string, strictHost bool, dialTimeout time.Duration) (*ssh.Client, error) {
+        gotTarget, gotUser = target, user
+        return nil, nil
+    }
+    runRemoteCommandFunc = func(client sessionClient, cmd string, timeout time.Duration) ([]byte, int, error) {
+        return []byte("ok\n"), 0, nil
+    }
+
+    tmp := t.TempDir()
+    manifestPath := writeTemp(t, tmp, "m.yaml", `
+name: Use Manifest
+description: Defaults for ssh
+ssh_host:
+  ip: 127.0.0.1
+  user: tester
+commands:
+  - command: echo
+    shell: /bin/sh
+    args: ["hello"]
+`)
+    outPath := filepath.Join(tmp, "out.txt")
+
+    // Only provide manifest and out; expect fallback to ssh_host
+    rootCmd.SetArgs([]string{
+        "--manifest", manifestPath,
+        "--out", outPath,
+        "--strict-host-key=false",
+    })
+
+    err := rootCmd.Execute()
+    require.NoError(t, err)
+    require.Equal(t, "127.0.0.1:22", gotTarget)
+    require.Equal(t, "tester", gotUser)
+
+    // Ensure output file was written
+    b, err := os.ReadFile(outPath)
+    require.NoError(t, err)
+    require.Contains(t, string(b), "Command: echo hello\n")
+}
+
 func TestRootExecute_WritesTitleHeading(t *testing.T) {
     resetConfig()
     origDial := dialSSHFunc
@@ -138,6 +188,7 @@ description: Has titles
 commands:
   - title: Greeting
     command: echo
+    shell: /bin/sh
     args: ["hi"]
 `)
     outPath := filepath.Join(tmp, "out.txt")
@@ -157,8 +208,8 @@ commands:
     require.Contains(t, s, "Command: echo hi\n")
     // Ensure title appears before command
     require.Less(t, strings.Index(s, "Title: Greeting\n"), strings.Index(s, "Command: echo hi\n"))
-    // Ensure only one section separator ('-') was written for the titled section
-    require.Equal(t, 1, strings.Count(s, strings.Repeat("-", 80)))
+    // Discovery + titled section should yield at least two separators
+    require.True(t, strings.Count(s, strings.Repeat("-", 80)) >= 2)
 }
 
 func TestRootExecute_DialsOnceForMultipleCommands(t *testing.T) {
@@ -185,7 +236,9 @@ name: N
 description: D
 commands:
   - command: cmd1
+    shell: /bin/sh
   - command: cmd2
+    shell: /bin/sh
 `)
     outPath := filepath.Join(tmp, "out.txt")
 
@@ -218,7 +271,12 @@ func TestRootExecute_TimeoutReconnect(t *testing.T) {
     call := 0
     runRemoteCommandFunc = func(client sessionClient, cmd string, timeout time.Duration) ([]byte, int, error) {
         call++
+        // First call is discovery; return hosts
         if call == 1 {
+            return []byte("10.0.0.1 node1\n"), 0, nil
+        }
+        // Next call simulates a timeout on first command
+        if call == 2 {
             return nil, -1, context.DeadlineExceeded
         }
         return []byte("ok\n"), 0, nil
@@ -230,7 +288,9 @@ name: Timeout Test
 description: Should reconnect after timeout
 commands:
   - command: cmd1
+    shell: /bin/sh
   - command: cmd2
+    shell: /bin/sh
 `)
     outPath := filepath.Join(tmp, "out.txt")
 
@@ -264,6 +324,7 @@ name: N
 description: D
 commands:
   - command: x
+    shell: /bin/sh
 `)
     rootCmd.SetArgs([]string{
         "--user", "u",
@@ -304,23 +365,43 @@ commands:
     err = rootCmd.Execute()
     require.Error(t, err)
     require.Contains(t, err.Error(), "manifest.description is required")
-    // Empty commands
+    // Empty commands should perform discovery and write only discovered hosts list
     resetConfig()
+    // Stub dial and discovery output
+    origDial := dialSSHFunc
+    origRun := runRemoteCommandFunc
+    t.Cleanup(func() { dialSSHFunc = origDial; runRemoteCommandFunc = origRun })
+    dialSSHFunc = func(target, user, password, keyPath, passphrase, knownHostsPath string, strictHost bool, dialTimeout time.Duration) (*ssh.Client, error) {
+        return nil, nil
+    }
+    runRemoteCommandFunc = func(client sessionClient, cmd string, timeout time.Duration) ([]byte, int, error) {
+        return []byte("127.0.0.1 localhost\n10.0.0.1 node1\n10.0.0.2 node2\n"), 0, nil
+    }
     mfEmpty := writeTemp(t, tmp, "empty.yaml", `
 name: OnlyName
 description: D
 commands: []
 `)
+    outEmpty := filepath.Join(tmp, "out-empty.txt")
     rootCmd.SetArgs([]string{
         "--user", "u",
         "--target", "127.0.0.1:22",
         "--manifest", mfEmpty,
-        "--out", filepath.Join(tmp, "out.txt"),
+        "--out", outEmpty,
         "--strict-host-key=false",
     })
     err = rootCmd.Execute()
-    require.Error(t, err)
-    require.Contains(t, err.Error(), "manifest contains no commands")
+    require.NoError(t, err)
+    b, rerr := os.ReadFile(outEmpty)
+    require.NoError(t, rerr)
+    s := string(b)
+    require.Contains(t, s, "Discovered Hosts:\n")
+    require.Contains(t, s, "127.0.0.1\n")
+    require.Contains(t, s, "10.0.0.1\n")
+    require.Contains(t, s, "10.0.0.2\n")
+    // Ensure no command sections or child host headers are present
+    require.NotContains(t, s, "Command:")
+    require.NotContains(t, s, "Child Host:")
 }
 
 func TestRootExecute_DialError(t *testing.T) {
@@ -333,11 +414,12 @@ func TestRootExecute_DialError(t *testing.T) {
     }
 
     tmp := t.TempDir()
-    manifestPath := writeTemp(t, tmp, "m.yaml", `
+manifestPath := writeTemp(t, tmp, "m.yaml", `
 name: N
 description: D
 commands:
   - command: x
+    shell: /bin/sh
 `)
     outPath := filepath.Join(tmp, "out.txt")
 
@@ -443,11 +525,12 @@ func TestEnvOverrides_Initialize(t *testing.T) {
 func TestAdminUserRejected_ErrorReturned(t *testing.T) {
     resetConfig()
     tmp := t.TempDir()
-    manifestPath := writeTemp(t, tmp, "m.yaml", `
+manifestPath := writeTemp(t, tmp, "m.yaml", `
 name: N
 description: D
 commands:
   - command: x
+    shell: /bin/sh
 `)
     outPath := filepath.Join(tmp, "out.txt")
     rootCmd.SetArgs([]string{
@@ -470,6 +553,7 @@ name: N
 description: D
 commands:
   - command: x
+    shell: /bin/sh
 `)
     outPath := filepath.Join(tmp, "out.txt")
     rootCmd.SetArgs([]string{
@@ -515,6 +599,7 @@ name: N
 description: D
 commands:
   - command: x
+    shell: /bin/sh
 `)
     outPath := filepath.Join(badDir, "out.txt")
 

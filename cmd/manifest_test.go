@@ -16,3 +16,13 @@ func TestManifest_YAML_Unmarshal_Structure(t *testing.T) {
     require.Equal(t, "x", m.Commands[0].Command)
 }
 
+func TestManifest_YAML_SSHHost_Optional(t *testing.T) {
+    var m manifest
+    data := []byte("name: N\ndescription: D\nssh_host:\n  ip: 10.0.0.1\n  user: bob\ncommands:\n  - command: x\n")
+    require.NoError(t, yaml.Unmarshal(data, &m))
+    require.Equal(t, "N", m.Name)
+    require.Equal(t, "D", m.Description)
+    require.Equal(t, "10.0.0.1", m.SSHHost.IP)
+    require.Equal(t, "bob", m.SSHHost.User)
+    require.Equal(t, 1, len(m.Commands))
+}

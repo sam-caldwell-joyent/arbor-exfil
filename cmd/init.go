@@ -21,7 +21,8 @@ func init() {
 	rootCmd.Flags().StringVar(&cfgKnownHosts, "known-hosts", filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"), "Path to known_hosts file")
 	rootCmd.Flags().BoolVar(&cfgStrictHost, "strict-host-key", true, "Require host key verification (disable to accept any host key)")
 	rootCmd.Flags().DurationVar(&cfgTimeout, "cmd-timeout", 0, "Per-command timeout (e.g., 30s). 0 disables")
-	rootCmd.Flags().DurationVar(&cfgConnTimeout, "conn-timeout", 15*time.Second, "Connection timeout")
+    rootCmd.Flags().DurationVar(&cfgConnTimeout, "conn-timeout", 15*time.Second, "Connection timeout")
+    rootCmd.Flags().BoolVar(&cfgNoop, "noop", false, "Do not execute commands; write planned command strings to debug.out")
 
 	// Bind env with Viper
 	_ = viper.BindPFlag("target", rootCmd.Flags().Lookup("target"))
@@ -34,7 +35,8 @@ func init() {
 	_ = viper.BindPFlag("known-hosts", rootCmd.Flags().Lookup("known-hosts"))
 	_ = viper.BindPFlag("strict-host-key", rootCmd.Flags().Lookup("strict-host-key"))
 	_ = viper.BindPFlag("cmd-timeout", rootCmd.Flags().Lookup("cmd-timeout"))
-	_ = viper.BindPFlag("conn-timeout", rootCmd.Flags().Lookup("conn-timeout"))
+    _ = viper.BindPFlag("conn-timeout", rootCmd.Flags().Lookup("conn-timeout"))
+    _ = viper.BindPFlag("noop", rootCmd.Flags().Lookup("noop"))
 
 	viper.SetEnvPrefix("ARBOR_EXFIL")
 	viper.AutomaticEnv()
@@ -70,14 +72,17 @@ func init() {
 				cfgTimeout = d
 			}
 		}
-		if v := viper.GetString("conn-timeout"); v != "" {
-			if d, err := time.ParseDuration(v); err == nil {
-				cfgConnTimeout = d
-			}
-		}
-		// Booleans
-		if viper.IsSet("strict-host-key") {
-			cfgStrictHost = viper.GetBool("strict-host-key")
-		}
-	})
+        if v := viper.GetString("conn-timeout"); v != "" {
+            if d, err := time.ParseDuration(v); err == nil {
+                cfgConnTimeout = d
+            }
+        }
+        // Booleans
+        if viper.IsSet("strict-host-key") {
+            cfgStrictHost = viper.GetBool("strict-host-key")
+        }
+        if viper.IsSet("noop") {
+            cfgNoop = viper.GetBool("noop")
+        }
+    })
 }

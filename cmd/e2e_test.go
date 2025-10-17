@@ -35,14 +35,19 @@ description: Test commands
 commands:
   - title: First
     command: cmd1
+    shell: /bin/sh
   - title: Second
     command: cmd2
+    shell: /bin/sh
   - title: Third
     command: cmd3
+    shell: /bin/sh
   - title: Fourth
     command: cmd4
+    shell: /bin/sh
   - title: Fifth
     command: cmd5
+    shell: /bin/sh
 `)
 
     // Set CLI args

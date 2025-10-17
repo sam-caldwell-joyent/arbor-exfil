@@ -37,6 +37,7 @@ name: N
 description: D
 commands:
   - command: echo
+    shell: /bin/sh
     args: ["ok"]
 `)
     outPath := filepath.Join(tmp, "out.txt")
@@ -71,6 +72,7 @@ name: N
 description: D
 commands:
   - command: x
+    shell: /bin/sh
 `)
     rootCmd.SetArgs([]string{
         "--user", "tester",
@@ -111,6 +113,7 @@ name: N
 description: D
 commands:
   - command: x
+    shell: /bin/sh
 `)
     outPath := filepath.Join(tmp, "out.txt")
     rootCmd.SetArgs([]string{

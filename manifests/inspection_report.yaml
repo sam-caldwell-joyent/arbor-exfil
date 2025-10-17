@@ -5,143 +5,151 @@
 #
 name: Arbor Inspection Report
 description: Run read-only ArbOS commands to collect diagnostics
-host_discovery:
-  leader: 10.64.243.249
+ssh_host:
+  ip: 10.64.243.249
   user: arbor-exfil
-  commands:
-    - command: shell
-    - command: cat | awk '{print $1}'
 commands:
-  - title: system version
-    command: system version
-    timeout: 45s
-  - title:
-    command: system files show
-    timeout: 45s
-  - title: ip access show
-    command: ip access show
-    timeout: 45s
-  - title: ip arp show
-    command: ip arp show
-    timeout: 45s
-  - title: ip interfaces show
-    command: ip interfaces show
-    timeout: 45s
-  - title: ip route show
-    command: ip route show
-    timeout: 45s
-  - title: ip tee show
-    command: ip tee show
-    timeout: 45s
-  - title: services aaa show
-    command: services aaa show
-    timeout: 45s
-  - title: services dns show
-    command: services dns show
-    timeout: 45s
-  - title: services dns hosts
-    command: services dns hosts
-    timeout: 45s
-  - title: services http certificate
-    command: services http certificate
-    timeout: 45s
-  - title: services logging show
-    command: services logging show
-    timeout: 45s
-  - title:  services ntp show
-    command: services ntp show
-    timeout: 45s
-  - title: services sp show
-    command: services sp show
-    timeout: 45s
-  - title: services ssh show
-    command: services ssh show
-    timeout: 45s
-  - title: services ssh key show
-    command: services ssh key show
-    timeout: 45s
-  - title: system appliance
-    command: system appliance
-    timeout: 45s
-  - title: system attributes show
-    command: system attributes show
-    timeout: 45s
-  - title: system banner
-    command: system banner
-    timeout: 45s
-  - title: system benchmark show
-    command: system benchmark show
-    timeout: 45s
-  - title: system cores
-    command: system cores
-    timeout: 45s
-  - title: system disks show
-    command: system disks show
-    timeout: 45s
-  - title: system disks firmware show
-    command: system disks firmware show
-    timeout: 45s
-  - title: system files show
-    command: system files show
-    timeout: 45s
-  - title: system files directory disk
-    command: system files directory disk
-    timeout: 45s
-  - title: system files directory cdrom
-    command: system files directory cdrom
-    timeout: 45s
-  - title: system files directory usb
-    command: system files directory usb
-    timeout: 45s
-  - title: system files directory flash
-    command: system files directory flash
-    timeout: 45s
-  - title: system fips
-    command: system fips
-    timeout: 45s
-  - title: system hardware
-    command: system hardware
-    timeout: 45s
-  - title: system login-banner
-    command: system login-banner
-    timeout: 45s
-  - title: system lines
-    command: system lines
-    timeout: 45s
-  - title: system name
-    command: system name
-    timeout: 45s
-  - title: system processes
-    command: system processes
-    timeout: 45s
-  - title: system show
-    command: system show
-    timeout: 45s
-  - title: system timezone
-    command: system timezone
-    timeout: 45s
-  - title:
-    command:
-    timeout: 45s
-  - title:
-    command:
-    timeout: 45s
-  - title:
-    command:
-    timeout: 45s
-  - title:
-    command:
-    timeout: 45s
-  - title:
-    command:
-    timeout: 45s
-  - title:
-    command:
-    timeout: 45s
-  - title:
-    command:
-    timeout: 45s
-  - title:
-    command:
-    timeout: 45s
+#  - title: system version
+#    command: system version
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title:
+#    command: system files show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: ip access show
+#    command: ip access show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: ip arp show
+#    command: ip arp show
+#    timeout: 45s
+#  - title: ip interfaces show
+#    command: ip interfaces show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: ip route show
+#    command: ip route show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: ip tee show
+#    command: ip tee show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: services aaa show
+#    command: services aaa show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: services dns show
+#    command: services dns show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: services dns hosts
+#    command: services dns hosts
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: services http certificate
+#    command: services http certificate
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: services logging show
+#    command: services logging show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title:  services ntp show
+#    command: services ntp show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: services sp show
+#    command: services sp show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: services ssh show
+#    command: services ssh show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: services ssh key show
+#    command: services ssh key show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system appliance
+#    command: system appliance
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system attributes show
+#    command: system attributes show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system banner
+#    command: system banner
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system benchmark show
+#    command: system benchmark show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system cores
+#    command: system cores
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system disks show
+#    command: system disks show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system disks firmware show
+#    command: system disks firmware show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system files show
+#    command: system files show
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system files directory disk
+#    command: system files directory disk
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system files directory cdrom
+#    command: system files directory cdrom
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system files directory usb
+#    command: system files directory usb
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system files directory flash
+#    command: system files directory flash
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system fips
+#    command: system fips
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system hardware
+#    command: system hardware
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system login-banner
+#    command: system login-banner
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system lines
+#    command: system lines
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system name
+#    command: system name
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system processes
+#    command: system processes
+#    shell: /bin/comsh
+#    timeout: 45s
+#  - title: system show
+#    command: system show
+#    timeout: 45s
+#  - title: system timezone
+#    command: system timezone
+#    shell: /bin/comsh
+#    timeout: 45s
+
 

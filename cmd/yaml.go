@@ -21,6 +21,7 @@ func (c *commandEntry) UnmarshalYAML(value *yaml.Node) error {
         Cmd     string   `yaml:"cmd"`
         Args    []string `yaml:"args"`
         Title   string   `yaml:"title"`
+        Shell   string   `yaml:"shell"`
         Timeout string   `yaml:"timeout"`
     }
     if err := value.Decode(&aux); err != nil {
@@ -32,6 +33,7 @@ func (c *commandEntry) UnmarshalYAML(value *yaml.Node) error {
     }
     c.Args = aux.Args
     c.Title = aux.Title
+    c.Shell = aux.Shell
     c.Timeout = aux.Timeout
     return nil
 }
