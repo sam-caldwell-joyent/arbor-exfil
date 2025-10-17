@@ -11,7 +11,6 @@ import (
     "encoding/pem"
     "os"
     "path/filepath"
-    "strings"
     "testing"
     "time"
 
@@ -19,6 +18,8 @@ import (
     "github.com/spf13/viper"
     "github.com/stretchr/testify/require"
     "golang.org/x/crypto/ssh"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 // writeTemp creates a temp file with content and returns its path.
@@ -104,20 +105,23 @@ commands:
 
     b, err := os.ReadFile(outPath)
     require.NoError(t, err)
-    out := string(b)
-
-    // Header
-    require.Contains(t, out, "Name: Test Run")
-    require.Contains(t, out, "Description: Run two commands")
-    // Sections
-    require.Contains(t, out, `Command: echo 'hello world' 'a'\''b'`)
-    require.Contains(t, out, "Command: whoami\n")
-    // Exit codes and outputs
-    require.Contains(t, out, "Exit Code: 0")
-    require.Contains(t, out, "Exit Code: 1")
-    require.Contains(t, out, "Error: exit status 1")
-    // Ensures newline appended when missing
-    require.Contains(t, out, "out2\n---8<---")
+    var rep yamlReport
+    require.NoError(t, yaml.Unmarshal(b, &rep))
+    require.Equal(t, "Test Run", rep.Name)
+    require.Equal(t, "Run two commands", rep.Description)
+    // No hosts discovered; expect single run
+    require.Equal(t, 1, len(rep.Runs))
+    require.Equal(t, 2, len(rep.Runs[0].Results))
+    require.Equal(t, `echo 'hello world' 'a'\''b'`, rep.Runs[0].Results[0].Command)
+    require.Equal(t, "whoami", rep.Runs[0].Results[1].Command)
+    // Expect one success and one failure
+    have0, have1 := false, false
+    for _, r := range rep.Runs[0].Results {
+        if r.ExitCode == 0 { have0 = true }
+        if r.ExitCode == 1 && strings.Contains(r.Error, "exit status 1") { have1 = true }
+    }
+    require.True(t, have0)
+    require.True(t, have1)
 }
 
 func TestRootExecute_UsesManifestSSHHostDefaults(t *testing.T) {
@@ -165,7 +169,11 @@ commands:
     // Ensure output file was written
     b, err := os.ReadFile(outPath)
     require.NoError(t, err)
-    require.Contains(t, string(b), "Command: echo hello\n")
+    var rep yamlReport
+    require.NoError(t, yaml.Unmarshal(b, &rep))
+    require.Equal(t, 1, len(rep.Runs))
+    require.Equal(t, 1, len(rep.Runs[0].Results))
+    require.Equal(t, "echo hello", rep.Runs[0].Results[0].Command)
 }
 
 func TestRootExecute_WritesTitleHeading(t *testing.T) {
@@ -203,13 +211,12 @@ commands:
     require.NoError(t, err)
     b, err := os.ReadFile(outPath)
     require.NoError(t, err)
-    s := string(b)
-    require.Contains(t, s, "Title: Greeting\n")
-    require.Contains(t, s, "Command: echo hi\n")
-    // Ensure title appears before command
-    require.Less(t, strings.Index(s, "Title: Greeting\n"), strings.Index(s, "Command: echo hi\n"))
-    // Discovery + titled section should yield at least two separators
-    require.True(t, strings.Count(s, strings.Repeat("-", 80)) >= 2)
+    var rep yamlReport
+    require.NoError(t, yaml.Unmarshal(b, &rep))
+    require.Equal(t, 1, len(rep.Runs))
+    require.Equal(t, 1, len(rep.Runs[0].Results))
+    require.Equal(t, "Greeting", rep.Runs[0].Results[0].Title)
+    require.Equal(t, "echo hi", rep.Runs[0].Results[0].Command)
 }
 
 func TestRootExecute_DialsOnceForMultipleCommands(t *testing.T) {
@@ -310,9 +317,18 @@ commands:
 
     b, err := os.ReadFile(outPath)
     require.NoError(t, err)
-    s := string(b)
-    require.Contains(t, s, "Error: context deadline exceeded")
-    require.Contains(t, s, "Exit Code: -1")
+    var rep yamlReport
+    require.NoError(t, yaml.Unmarshal(b, &rep))
+    // Expect at least one timeout error in results
+    foundTimeout := false
+    for _, run := range rep.Runs {
+        for _, r := range run.Results {
+            if r.ExitCode == -1 && strings.Contains(r.Error, context.DeadlineExceeded.Error()) {
+                foundTimeout = true
+            }
+        }
+    }
+    require.True(t, foundTimeout)
 }
 
 func TestRootExecute_ValidationErrors(t *testing.T) {
@@ -394,14 +410,10 @@ commands: []
     require.NoError(t, err)
     b, rerr := os.ReadFile(outEmpty)
     require.NoError(t, rerr)
-    s := string(b)
-    require.Contains(t, s, "Discovered Hosts:\n")
-    require.Contains(t, s, "127.0.0.1\n")
-    require.Contains(t, s, "10.0.0.1\n")
-    require.Contains(t, s, "10.0.0.2\n")
-    // Ensure no command sections or child host headers are present
-    require.NotContains(t, s, "Command:")
-    require.NotContains(t, s, "Child Host:")
+    var rep yamlReport
+    require.NoError(t, yaml.Unmarshal(b, &rep))
+    require.Nil(t, rep.Runs)
+    require.ElementsMatch(t, []string{"127.0.0.1", "10.0.0.1", "10.0.0.2"}, rep.Discovery.DiscoveredHosts)
 }
 
 func TestRootExecute_DialError(t *testing.T) {
@@ -444,31 +456,27 @@ func TestShellQuote(t *testing.T) {
     require.Equal(t, "abc+123", shellQuote("abc+123"))
 }
 
-func TestWriteHeaderAndSection(t *testing.T) {
+func TestYAMLReport_Emit(t *testing.T) {
+    mf := &manifest{Name: "N", Description: "D"}
+    rep := newYAMLReport(mf)
+    rep.setDiscovery([]byte("127.0.0.1 localhost\n"), []string{"127.0.0.1"}, true)
+    rep.addResult("", yamlCmdResult{Command: "x", ExitCode: 0, Output: "hello\n"})
+    rep.addResult("", yamlCmdResult{Command: "x", ExitCode: 2, Timeout: "3s", Error: "boom", Output: "no-nl"})
     var buf bytes.Buffer
-    mf := &manifest{Name: "N", Description: "D", Commands: []commandEntry{{Command: "x"}}}
-    writeHeader(&buf, mf)
-    s := buf.String()
-    require.Contains(t, s, "Name: N")
-    require.Contains(t, s, "Description: D")
-    require.Contains(t, s, "Command Count: 1")
+    require.NoError(t, writeYAMLReport(&buf, rep))
 
-    buf.Reset()
-    err := writeCommandSection(&buf, commandEntry{Command: "x"}, []byte("hello\n"), 0, nil, 0)
-    require.NoError(t, err)
-    out := buf.String()
-    require.Contains(t, out, "Command: x\n")
-    require.Contains(t, out, "Exit Code: 0")
-    require.Contains(t, out, "---8<---\nhello\n---8<---")
-
-    buf.Reset()
-    err = writeCommandSection(&buf, commandEntry{Command: "x"}, []byte("no-nl"), 2, errors.New("boom"), 3*time.Second)
-    require.NoError(t, err)
-    out = buf.String()
-    require.Contains(t, out, "Timeout: 3s")
-    require.Contains(t, out, "Exit Code: 2")
-    require.Contains(t, out, "Error: boom")
-    require.True(t, strings.Contains(out, "no-nl\n---8<---"))
+    // Parse back to ensure it is valid YAML and structured
+    var got yamlReport
+    require.NoError(t, yaml.Unmarshal(buf.Bytes(), &got))
+    require.Equal(t, "N", got.Name)
+    require.Equal(t, "D", got.Description)
+    require.Equal(t, []string{"127.0.0.1"}, got.Discovery.DiscoveredHosts)
+    require.Equal(t, 1, len(got.Runs))
+    require.Equal(t, 2, len(got.Runs[0].Results))
+    require.Equal(t, 0, got.Runs[0].Results[0].ExitCode)
+    require.Equal(t, 2, got.Runs[0].Results[1].ExitCode)
+    require.Equal(t, "3s", got.Runs[0].Results[1].Timeout)
+    require.Equal(t, "boom", got.Runs[0].Results[1].Error)
 }
 
 func TestPerCommandTimeout(t *testing.T) {

@@ -26,6 +26,10 @@ func parseHostsIPs(b []byte) []string {
         if len(fields) == 0 { continue }
         ip := fields[0]
         if v := net.ParseIP(ip); v != nil {
+            // Filter out IPv6 loopback (::1 and equivalent) but keep IPv4 loopback (127.0.0.1)
+            if v.IsLoopback() && v.To4() == nil {
+                continue
+            }
             if _, ok := seen[ip]; !ok {
                 seen[ip] = struct{}{}
                 out = append(out, ip)
@@ -44,4 +48,3 @@ func discoverChildHosts(client sessionClient, timeout time.Duration) (raw []byte
     }
     return out, code, parseHostsIPs(out), nil
 }
-

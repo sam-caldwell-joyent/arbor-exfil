@@ -2,27 +2,24 @@ package cmd
 
 import (
     "bytes"
-    "errors"
     "testing"
-    "time"
     "github.com/stretchr/testify/require"
+    "gopkg.in/yaml.v3"
 )
 
-func TestWriteCommandSection_Dedicated(t *testing.T) {
+func TestYAMLCommandResult_Dedicated(t *testing.T) {
+    rep := newYAMLReport(&manifest{Name: "N", Description: "D"})
+    rep.addResult("", yamlCmdResult{Command: "x", ExitCode: 0, Output: "hello\n"})
+    rep.addResult("", yamlCmdResult{Command: "x", ExitCode: 2, Timeout: "3s", Error: "boom", Output: "no-nl"})
     var buf bytes.Buffer
-    err := writeCommandSection(&buf, commandEntry{Command: "x"}, []byte("hello\n"), 0, nil, 0)
-    require.NoError(t, err)
-    out := buf.String()
-    require.Contains(t, out, "Command: x\n")
-    require.Contains(t, out, "Exit Code: 0")
-    require.Contains(t, out, "---8<---\nhello\n---8<---")
-
-    buf.Reset()
-    err = writeCommandSection(&buf, commandEntry{Command: "x"}, []byte("no-nl"), 2, errors.New("boom"), 3*time.Second)
-    require.NoError(t, err)
-    out = buf.String()
-    require.Contains(t, out, "Timeout: 3s")
-    require.Contains(t, out, "Exit Code: 2")
-    require.Contains(t, out, "Error: boom")
+    require.NoError(t, writeYAMLReport(&buf, rep))
+    var got yamlReport
+    require.NoError(t, yaml.Unmarshal(buf.Bytes(), &got))
+    require.Equal(t, 1, len(got.Runs))
+    require.Equal(t, 2, len(got.Runs[0].Results))
+    require.Equal(t, "x", got.Runs[0].Results[0].Command)
+    require.Equal(t, 0, got.Runs[0].Results[0].ExitCode)
+    require.Equal(t, "hello\n", got.Runs[0].Results[0].Output)
+    require.Equal(t, "3s", got.Runs[0].Results[1].Timeout)
+    require.Equal(t, "boom", got.Runs[0].Results[1].Error)
 }
-

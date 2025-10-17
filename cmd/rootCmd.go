@@ -1,8 +1,8 @@
 package cmd
 
 import (
-    "context"
     "bufio"
+    "context"
     "errors"
     "fmt"
     "os"
@@ -87,8 +87,8 @@ var rootCmd = &cobra.Command{
 			}
 		}(outFile)
 
-        // Header in output
-        writeHeader(outFile, mf)
+        // Prepare YAML report model
+        report := newYAMLReport(mf)
 
 		// Connect SSH
 		client, err := dialSSHFunc(cfgTarget, cfgUser, cfgPassword, cfgKeyPath, cfgPassphrase, cfgKnownHosts,
@@ -122,57 +122,34 @@ var rootCmd = &cobra.Command{
 		}
 
         // Host discovery
-        discOut, discExit, _, discErr := discoverChildHosts(sessClient, cfgTimeout)
-        // If there are commands to run, include discovery section in the report.
-        if len(mf.Commands) > 0 {
-            discEntry := commandEntry{Command: "cat", Args: []string{"/etc/hosts"}, Title: "Host Discovery (/etc/hosts)"}
-            // Pre-write the discovery title and a separator line
-            {
-                bw := bufio.NewWriter(outFile)
-                _, _ = fmt.Fprintln(bw, strings.Repeat("-", 80))
-                _, _ = fmt.Fprintln(bw, "Title: "+discEntry.Title)
-                _ = bw.Flush()
-            }
-            if err := writeCommandSection(outFile, discEntry, discOut, discExit, discErr, cfgTimeout); err != nil {
-                return fmt.Errorf("failed writing discovery output: %w", err)
-            }
-        }
-        // Parse child hosts if discovery succeeded; on error, proceed with no children.
-        var childHosts []string
+        discOut, _, _, discErr := discoverChildHosts(sessClient, cfgTimeout)
+        // Populate discovery section. Include full hosts content when commands exist.
+        discovered := []string{}
         if discErr == nil {
-            childHosts = parseHostsIPs(discOut)
+            discovered = parseHostsIPs(discOut)
         }
-
-        // If there are no commands, emit only the discovered hosts list and exit.
+        report.setDiscovery(discOut, discovered, len(mf.Commands) > 0)
+        // Parse child hosts (already done into discovered). If no commands, emit YAML with discovery only.
         if len(mf.Commands) == 0 {
-            bw := bufio.NewWriter(outFile)
-            _, _ = fmt.Fprintln(bw, strings.Repeat("-", 80))
-            _, _ = fmt.Fprintln(bw, "Discovered Hosts:")
-            for _, ip := range childHosts {
-                _, _ = fmt.Fprintln(bw, ip)
+            if err := writeYAMLReport(outFile, report); err != nil {
+                return fmt.Errorf("failed to write YAML report: %w", err)
             }
-            _ = bw.Flush()
             _, _ = fmt.Fprintf(os.Stderr, "Done. Output written to %s\n", cfgOutPath)
             return nil
         }
 
-        if len(childHosts) == 0 {
-            // Run commands once if no hosts discovered.
-            childHosts = []string{""}
-        }
-
-        // In noop mode, just write planned command strings to debug.out
+        // In noop mode, just write planned command strings to debug.out,
+        // and still emit a YAML report with discovery only.
         if cfgNoop {
             dbgPath := "debug.out"
             f, err := os.Create(dbgPath)
             if err != nil {
                 return fmt.Errorf("create %s: %w", dbgPath, err)
             }
-            w := bufio.NewWriter(f)
-            _, _ = fmt.Fprintf(w, "# Planned commands (%d hosts x %d commands)\n", len(childHosts), len(mf.Commands))
-            _, _ = fmt.Fprintln(w, "# Discovery: cat /etc/hosts")
-            for _, host := range childHosts {
-                if strings.TrimSpace(host) != "" { _, _ = fmt.Fprintf(w, "# child: %s\n", host) }
+            {
+                bw := bufio.NewWriter(f)
+                _, _ = fmt.Fprintf(bw, "# Planned commands (%d commands)\n", len(mf.Commands))
+                _, _ = fmt.Fprintln(bw, "# Discovery: cat /etc/hosts")
                 for _, c := range mf.Commands {
                     shell := c.Shell
                     cmdArg := shellQuote(c.line())
@@ -180,32 +157,28 @@ var rootCmd = &cobra.Command{
                         cmdArg = "'" + cmdArg + "'"
                     }
                     full := fmt.Sprintf("sudo -u admin --shell %s -c %s", shellQuote(shell), cmdArg)
-                    _ = full // for clarity
-                    _, _ = fmt.Fprintln(w, full)
+                    _, _ = fmt.Fprintln(bw, full)
                 }
+                _ = bw.Flush()
             }
-            _ = w.Flush()
             _ = f.Close()
+            if err := writeYAMLReport(outFile, report); err != nil {
+                return fmt.Errorf("failed to write YAML report: %w", err)
+            }
             _, _ = fmt.Fprintf(os.Stderr, "Noop mode: wrote planned commands to %s\n", dbgPath)
             _, _ = fmt.Fprintf(os.Stderr, "Done. Output written to %s\n", cfgOutPath)
             return nil
         }
 
         // Execute commands for each child host
+        childHosts := discovered
+        if len(childHosts) == 0 {
+            childHosts = []string{""}
+        }
         for _, host := range childHosts {
             for i, c := range mf.Commands {
                 title := fmt.Sprintf("[%d/%d] %s", i+1, len(mf.Commands), c.line())
                 _, _ = fmt.Fprintf(os.Stderr, "Executing %s\n", title)
-
-                // Write a combined heading for child host and optional title once per section
-                if strings.TrimSpace(host) != "" || strings.TrimSpace(c.Title) != "" {
-                    bw := bufio.NewWriter(outFile)
-                    _, _ = fmt.Fprintln(bw, strings.Repeat("-", 80))
-                    if strings.TrimSpace(host) != "" { _, _ = fmt.Fprintf(bw, "Child Host: %s\n", host) }
-                    if strings.TrimSpace(c.Title) != "" { _, _ = fmt.Fprintf(bw, "Title: %s\n", c.Title) }
-                    _ = bw.Flush()
-                }
-
                 shell := c.Shell
                 cmdArg := shellQuote(c.line())
                 if !strings.HasPrefix(cmdArg, "'") || !strings.HasSuffix(cmdArg, "'") {
@@ -216,10 +189,21 @@ var rootCmd = &cobra.Command{
                 cmdTimeout := c.perCommandTimeout(cfgTimeout)
                 out, exitCode, runErr := runRemoteCommandFunc(sessClient, fullCmd, cmdTimeout)
 
-                // Write section to output file
-                if err := writeCommandSection(outFile, c, out, exitCode, runErr, cmdTimeout); err != nil {
-                    return fmt.Errorf("failed writing output: %w", err)
+                // Accumulate result in report
+                res := yamlCmdResult{
+                    Title:    strings.TrimSpace(c.Title),
+                    Command:  c.line(),
+                    Shell:    c.Shell,
+                    ExitCode: exitCode,
+                    Output:   string(out),
                 }
+                if cmdTimeout > 0 {
+                    res.Timeout = cmdTimeout.String()
+                }
+                if runErr != nil {
+                    res.Error = runErr.Error()
+                }
+                report.addResult(host, res)
 
                 // On timeout, try to reconnect once and continue
                 if errors.Is(runErr, context.DeadlineExceeded) {
@@ -239,6 +223,11 @@ var rootCmd = &cobra.Command{
                     }
                 }
             }
+        }
+
+        // Emit YAML report
+        if err := writeYAMLReport(outFile, report); err != nil {
+            return fmt.Errorf("failed to write YAML report: %w", err)
         }
 
 		_, _ = fmt.Fprintf(os.Stderr, "Done. Output written to %s\n", cfgOutPath)

@@ -3,10 +3,10 @@ package cmd
 import (
     "os"
     "path/filepath"
-    "strings"
     "testing"
     "time"
 
+    "gopkg.in/yaml.v3"
     srv "arbor-exfil/tools/sshserv"
 )
 
@@ -65,12 +65,18 @@ commands:
 
     b, err := os.ReadFile(outPath)
     if err != nil { t.Fatalf("read out: %v", err) }
-    s := string(b)
-    // We expect five commands in our E2E manifest
-    if strings.Count(s, "Exit Code: 0") < 5 {
-        t.Fatalf("expected at least 5 successful exit codes, got %d", strings.Count(s, "Exit Code: 0"))
+    var rep yamlReport
+    if err := yaml.Unmarshal(b, &rep); err != nil {
+        t.Fatalf("unmarshal yaml: %v\n%s", err, string(b))
     }
-    if strings.Count(s, "\nok\n") < 5 && strings.Count(s, "\nok\r\n") < 5 {
-        t.Fatalf("expected at least 5 'ok' outputs, got %d", strings.Count(s, "\nok\n"))
+    // We expect five successful results overall
+    success := 0
+    for _, run := range rep.Runs {
+        for _, r := range run.Results {
+            if r.ExitCode == 0 && (r.Output == "ok\n" || r.Output == "ok\r\n") {
+                success++
+            }
+        }
     }
+    if success < 5 { t.Fatalf("expected at least 5 ok results, got %d", success) }
 }

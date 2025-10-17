@@ -6,6 +6,7 @@ import (
     "testing"
     "github.com/stretchr/testify/require"
     "golang.org/x/crypto/ssh"
+    "gopkg.in/yaml.v3"
     "time"
 )
 
@@ -54,8 +55,11 @@ commands:
 
     b, err := os.ReadFile(outPath)
     require.NoError(t, err)
-    s := string(b)
-    require.Contains(t, s, "Title: Host Discovery (/etc/hosts)\n")
-    require.Contains(t, s, "Child Host: 10.0.0.1\n")
-    require.Contains(t, s, "Child Host: 10.0.0.2\n")
+    var rep yamlReport
+    require.NoError(t, yaml.Unmarshal(b, &rep))
+    require.ElementsMatch(t, []string{"10.0.0.1", "10.0.0.2"}, rep.Discovery.DiscoveredHosts)
+    // Runs for each child host
+    require.Equal(t, 2, len(rep.Runs))
+    hosts := []string{rep.Runs[0].Host, rep.Runs[1].Host}
+    require.ElementsMatch(t, []string{"10.0.0.1", "10.0.0.2"}, hosts)
 }
