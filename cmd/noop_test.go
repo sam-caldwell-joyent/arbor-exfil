@@ -6,6 +6,7 @@ import (
     "testing"
     "github.com/stretchr/testify/require"
     "golang.org/x/crypto/ssh"
+    "gopkg.in/yaml.v3"
     "time"
 )
 
@@ -45,6 +46,7 @@ commands:
     outPath := filepath.Join(tmp, "out.txt")
 
     rootCmd.SetArgs([]string{
+        "run",
         "--manifest", manifestPath,
         "--out", outPath,
         "--strict-host-key=false",
@@ -58,4 +60,13 @@ commands:
     s := string(b)
     require.Contains(t, s, "sudo -u admin --shell /bin/sh -c 'cmd1'")
     require.Contains(t, s, "sudo -u admin --shell /bin/sh -c 'cmd2'")
+
+    // Also verify YAML report was written with discovery and no runs
+    outYaml, err := os.ReadFile(outPath)
+    require.NoError(t, err)
+    var rep yamlReport
+    require.NoError(t, yaml.Unmarshal(outYaml, &rep))
+    require.Nil(t, rep.Runs)
+    require.NotNil(t, rep.Discovery)
+    require.GreaterOrEqual(t, len(rep.Discovery.DiscoveredHosts), 1)
 }

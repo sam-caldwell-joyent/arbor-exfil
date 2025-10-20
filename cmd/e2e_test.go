@@ -52,6 +52,7 @@ commands:
 
     // Set CLI args
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:20222",
         "--user", "tester",
         "--manifest", mfPath,

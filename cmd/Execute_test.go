@@ -43,6 +43,7 @@ commands:
     outPath := filepath.Join(tmp, "out.txt")
 
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "tester",
         "--manifest", manifestPath,
@@ -75,6 +76,7 @@ commands:
     shell: /bin/sh
 `)
     rootCmd.SetArgs([]string{
+        "run",
         "--user", "tester",
         "--manifest", manifestPath,
         "--out", filepath.Join(tmp, "out.txt"),
@@ -117,6 +119,7 @@ commands:
 `)
     outPath := filepath.Join(tmp, "out.txt")
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "admin",
         "--manifest", manifestPath,

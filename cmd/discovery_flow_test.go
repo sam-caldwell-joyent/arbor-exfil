@@ -43,6 +43,7 @@ commands:
     outPath := filepath.Join(tmp, "out.txt")
 
     rootCmd.SetArgs([]string{
+        "run",
         "--manifest", manifestPath,
         "--out", outPath,
         "--strict-host-key=false",
@@ -58,6 +59,8 @@ commands:
     var rep yamlReport
     require.NoError(t, yaml.Unmarshal(b, &rep))
     require.ElementsMatch(t, []string{"10.0.0.1", "10.0.0.2"}, rep.Discovery.DiscoveredHosts)
+    // With commands present, hosts_content should be captured
+    require.NotEmpty(t, rep.Discovery.HostsContent)
     // Runs for each child host
     require.Equal(t, 2, len(rep.Runs))
     hosts := []string{rep.Runs[0].Host, rep.Runs[1].Host}

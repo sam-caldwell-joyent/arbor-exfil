@@ -22,6 +22,7 @@ var (
     cfgTimeout     time.Duration
     cfgConnTimeout time.Duration
     cfgNoop        bool
+    cfgInstallPubKeyPath string
 )
 
 // Allow tests to stub dialing and command execution

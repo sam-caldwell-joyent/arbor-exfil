@@ -41,6 +41,10 @@ func resetConfig() {
         _ = f.Value.Set(f.DefValue)
         f.Changed = false
     })
+    rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+        _ = f.Value.Set(f.DefValue)
+        f.Changed = false
+    })
     cfgManifest = ""
     cfgTarget = ""
     cfgUser = ""
@@ -93,6 +97,7 @@ commands:
 
     // Set CLI args
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "tester",
         "--manifest", manifestPath,
@@ -156,6 +161,7 @@ commands:
 
     // Only provide manifest and out; expect fallback to ssh_host
     rootCmd.SetArgs([]string{
+        "run",
         "--manifest", manifestPath,
         "--out", outPath,
         "--strict-host-key=false",
@@ -201,6 +207,7 @@ commands:
 `)
     outPath := filepath.Join(tmp, "out.txt")
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "tester",
         "--manifest", manifestPath,
@@ -250,6 +257,7 @@ commands:
     outPath := filepath.Join(tmp, "out.txt")
 
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "tester",
         "--manifest", manifestPath,
@@ -302,6 +310,7 @@ commands:
     outPath := filepath.Join(tmp, "out.txt")
 
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "tester",
         "--manifest", manifestPath,
@@ -343,6 +352,7 @@ commands:
     shell: /bin/sh
 `)
     rootCmd.SetArgs([]string{
+        "run",
         "--user", "u",
         "--manifest", manifestPath,
         "--out", filepath.Join(tmp, "out.txt"),
@@ -355,6 +365,7 @@ commands:
     // Missing manifest
     resetConfig()
     rootCmd.SetArgs([]string{
+        "run",
         "--user", "u",
         "--target", "127.0.0.1:22",
         "--out", filepath.Join(tmp, "out.txt"),
@@ -372,6 +383,7 @@ commands:
   - command: x
 `)
     rootCmd.SetArgs([]string{
+        "run",
         "--user", "u",
         "--target", "127.0.0.1:22",
         "--manifest", mfBad,
@@ -400,6 +412,7 @@ commands: []
 `)
     outEmpty := filepath.Join(tmp, "out-empty.txt")
     rootCmd.SetArgs([]string{
+        "run",
         "--user", "u",
         "--target", "127.0.0.1:22",
         "--manifest", mfEmpty,
@@ -414,6 +427,8 @@ commands: []
     require.NoError(t, yaml.Unmarshal(b, &rep))
     require.Nil(t, rep.Runs)
     require.ElementsMatch(t, []string{"127.0.0.1", "10.0.0.1", "10.0.0.2"}, rep.Discovery.DiscoveredHosts)
+    // In discovery-only mode, hosts_content is omitted
+    require.Equal(t, "", rep.Discovery.HostsContent)
 }
 
 func TestRootExecute_DialError(t *testing.T) {
@@ -436,6 +451,7 @@ commands:
     outPath := filepath.Join(tmp, "out.txt")
 
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "tester",
         "--manifest", manifestPath,
@@ -542,6 +558,7 @@ commands:
 `)
     outPath := filepath.Join(tmp, "out.txt")
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "admin",
         "--manifest", manifestPath,
@@ -565,6 +582,7 @@ commands:
 `)
     outPath := filepath.Join(tmp, "out.txt")
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "admin",
         "--manifest", manifestPath,
@@ -612,6 +630,7 @@ commands:
     outPath := filepath.Join(badDir, "out.txt")
 
     rootCmd.SetArgs([]string{
+        "run",
         "--target", "127.0.0.1:22",
         "--user", "tester",
         "--manifest", manifestPath,
