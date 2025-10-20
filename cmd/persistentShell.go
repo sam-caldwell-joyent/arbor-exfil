@@ -16,6 +16,10 @@ import (
 // persistentShell maintains a single long-lived remote shell over one ssh.Session
 // and executes commands sequentially, capturing combined output and exit status
 // using a unique delimiter echoed after each command.
+// persistentShell manages a single interactive PTY shell on the remote host
+// and provides a runOne method to execute sequential commands on that same
+// connection. This preserves state (cwd, env) across commands and avoids the
+// overhead and incompatibilities of starting a new exec channel for each.
 type persistentShell struct {
 	sess   *ssh.Session
 	stdin  io.WriteCloser
@@ -28,6 +32,9 @@ type persistentShell struct {
 	seq   int
 }
 
+// newPersistentShell creates and initializes a remote PTY shell attached to a
+// single SSH session. It wires stdout/stderr into a unified stream and starts
+// /bin/sh in script mode. The returned shell is ready to run commands.
 func newPersistentShell(client *ssh.Client) (*persistentShell, error) {
 	s, err := client.NewSession()
 	if err != nil {
@@ -78,6 +85,9 @@ func newPersistentShell(client *ssh.Client) (*persistentShell, error) {
 	return ps, nil
 }
 
+// Close attempts to gracefully terminate the remote shell and release
+// resources. It is safe to call multiple times; errors from stream closures are
+// ignored and the underlying ssh.Session Close result is returned.
 func (ps *persistentShell) Close() error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -90,6 +100,9 @@ func (ps *persistentShell) Close() error {
 
 // runOne executes a single command line in the persistent shell and returns
 // its combined output and exit code.
+// runOne executes a single line in the persistent shell and returns combined
+// output and the command's exit code. A unique marker is echoed after the
+// command to delimit out-of-band exit status reliably across PTY streams.
 func (ps *persistentShell) runOne(line string) ([]byte, int, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
@@ -160,6 +173,8 @@ func (ps *persistentShell) runOne(line string) ([]byte, int, error) {
 }
 
 // parseInt converts a decimal string to int, safe for small values
+// parseInt converts a decimal string to int. It is intentionally minimal to
+// avoid pulling in strconv for this simple parser in the hot path.
 func parseInt(s string) (int, error) {
 	var n int
 	for _, r := range s {
@@ -171,6 +186,9 @@ func parseInt(s string) (int, error) {
 	return n, nil
 }
 
+// makeNonce returns a short, pseudo-random identifier used to create unique
+// end markers in the combined PTY stream so we can reliably detect command
+// completion and capture the exit code.
 func makeNonce() string {
 	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, 12)
@@ -184,23 +202,33 @@ func makeNonce() string {
 // persistentSessionClient returns virtual sessions that run on the same persistent shell.
 type persistentSessionClient struct{ ps *persistentShell }
 
+// NewSession returns a lightweight virtual session backed by the same
+// persistent shell. Each virtual session maps CombinedOutput to runOne.
 func (c persistentSessionClient) NewSession() (session, error) {
 	return &persistentVirtualSession{ps: c.ps}, nil
 }
 
 // persistentVirtualSession adapts persistentShell to the session interface.
+// persistentVirtualSession adapts a persistentShell to the session interface by
+// implementing CombinedOutput and tracking the last exit code.
 type persistentVirtualSession struct {
 	ps       *persistentShell
 	lastExit int
 }
 
+// CombinedOutput runs cmd via the persistent shell and records the exit code
+// for later retrieval by runRemoteCommand.
 func (s *persistentVirtualSession) CombinedOutput(cmd string) ([]byte, error) {
 	out, code, err := s.ps.runOne(cmd)
 	s.lastExit = code
 	return out, err
 }
 
+// Close is a no-op for the virtual session; the underlying persistent shell is
+// owned by the session client and closed separately.
 func (s *persistentVirtualSession) Close() error { return nil }
 
 // LastExitCode exposes the exit status of the last command for runRemoteCommand.
+// LastExitCode reports the last command's exit code as observed in the PTY
+// stream marker.
 func (s *persistentVirtualSession) LastExitCode() int { return s.lastExit }

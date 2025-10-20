@@ -12,6 +12,9 @@ import (
 )
 
 // Happy path: Execute() should not call exitFunc when rootCmd succeeds.
+// TestExecute_Success_NoExit verifies that Execute does not invoke the exit
+// function on success and that the run subcommand creates the output file.
+// Assumes dial/run are stubbed to avoid network.
 func TestExecute_Success_NoExit(t *testing.T) {
     resetConfig()
 
@@ -61,8 +64,9 @@ commands:
     require.NoError(t, err)
 }
 
-// Generic error path: Execute() should print to stderr and call exit 1 when
-// root command returns a non-admin error (e.g., missing required flags).
+// TestExecute_GenericError_Exit1 verifies that when the root command fails
+// with a non-admin error (validation), Execute writes the error to stderr and
+// invokes the exit function with code 1. Assumes missing --target flag.
 func TestExecute_GenericError_Exit1(t *testing.T) {
     resetConfig()
 
@@ -105,7 +109,9 @@ commands:
     require.Equal(t, 1, code)
 }
 
-// Sad path: admin user should print to stdout and call exit 1
+// TestExecute_AdminUser_StdoutExit1_Dedicated verifies that when the admin
+// username is used, Execute prints a friendly message to stdout and exits 1.
+// Assumes the run subcommand is configured with user=admin.
 func TestExecute_AdminUser_StdoutExit1_Dedicated(t *testing.T) {
     resetConfig()
 

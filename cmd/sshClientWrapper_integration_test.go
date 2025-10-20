@@ -50,6 +50,9 @@ func startNoopSessionServer(t *testing.T) (addr string, stop func()) {
     return ln.Addr().String(), func() { _ = ln.Close(); <-done }
 }
 
+// TestSSHClientWrapper_NewSession_Success_Integ verifies that NewSession on the
+// wrapper returns a usable session against a minimal in-process SSH server
+// that accepts PTY and exec. Assumes insecure host key callback for tests.
 func TestSSHClientWrapper_NewSession_Success_Integ(t *testing.T) {
     addr, stop := startNoopSessionServer(t)
     defer stop()
@@ -62,4 +65,3 @@ func TestSSHClientWrapper_NewSession_Success_Integ(t *testing.T) {
     if err != nil { t.Fatalf("NewSession error: %v", err) }
     if s == nil { t.Fatalf("expected non-nil session") }
 }
-

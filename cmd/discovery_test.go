@@ -5,6 +5,10 @@ import (
     "github.com/stretchr/testify/require"
 )
 
+// TestParseHostsIPs verifies that parseHostsIPs extracts the first column of
+// unique IPv4/IPv6 addresses from /etc/hosts content, preserving first-seen
+// order and filtering ::1 while retaining 127.0.0.1. Assumes representative
+// input content including comments and duplicates.
 func TestParseHostsIPs(t *testing.T) {
     data := []byte("# comment\n127.0.0.1 localhost\n10.0.0.1 host1 host1.alias # trailing\n10.0.0.1 dup\n::1 localhost\n\n192.168.1.5 host2\n")
     ips := parseHostsIPs(data)

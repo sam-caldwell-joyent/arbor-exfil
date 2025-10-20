@@ -7,6 +7,9 @@ import (
     "gopkg.in/yaml.v3"
 )
 
+// TestYAMLHeader_Dedicated verifies that a basic YAML report encodes the
+// manifest name and description fields at the top level. Assumes in-memory
+// buffer writer and unmarshaling with gopkg.in/yaml.v3.
 func TestYAMLHeader_Dedicated(t *testing.T) {
     var buf bytes.Buffer
     mf := &manifest{Name: "N", Description: "D"}

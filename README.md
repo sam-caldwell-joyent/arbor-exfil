@@ -5,47 +5,30 @@ responses to a structured YAML report file.
 
 ## Usage
 
-### Build:
-```
-# YAML example
-name: Example Arbor Exfil
-description: Run read-only ArbOS commands to collect diagnostics
-generated: 2025-10-09T18:00:00Z
-discovery:
-  hosts_content: |
-    127.0.0.1 localhost
-    10.0.0.5 arbos-leader
-  discovered_hosts:
-    - 127.0.0.1
-    - 10.0.0.5
-runs:
-  - host: 10.0.0.5
-    results:
-      - title: Show version
-        command: show version
-        shell: /bin/comsh
-        exit_code: 0
-        output: |
-          ...device output...
+### Build
 ```
 make build
+```
+or build a local Docker image:
+```
+make docker
 ```
 
 ### Run:
 ```
-./arbor-exfil --target tms.example.com:22 \
+./arbor-exfil run --target tms.example.com:22 \
               --user arbor \
               --manifest manifests/inspection_report.yaml \
-              --out output.txt \
-              --known-hosts ~/.ssh/known_hosts`
+              --out output.yaml \
+              --known-hosts ~/.ssh/known_hosts
 ```
 
 If your manifest provides `ssh_host`, you can omit `--target` and `--user` and the tool will use those defaults
 from the manifest (CLI flags still take precedence if provided):
 
 ```
-./arbor-exfil --manifest manifests/inspection_report.yaml \
-              --out output.txt \
+./arbor-exfil run --manifest manifests/inspection_report.yaml \
+              --out output.yaml \
               --strict-host-key=false
 ```
 
@@ -61,6 +44,7 @@ from the manifest (CLI flags still take precedence if provided):
   - `--strict-host-key`: Enforce host key verification (default true). Set to `false` to accept any host key.
   - `--cmd-timeout`: Per-command timeout, e.g., `30s` (0 = no timeout).
   - `--conn-timeout`: SSH connection timeout (default 15s).
+  - `--install-pubkey`: Path to SSH public key for `install` (install only).
 
 #### Manifest format
 The manifest is a YAML file with metadata, optional SSH defaults, and a list of commands.
@@ -100,21 +84,28 @@ commands:
 ```
 
 ### Output Format (YAML)
-The output file is structured YAML with discovery and per-host results:
+The output file is structured YAML with discovery and per-host results, e.g.:
 
 ```
-Name: Example Arbor Exfil
-Description: Run read-only ArbOS commands to collect diagnostics
-Generated: 2025-10-09T18:00:00Z
-Command Count: 3
-================================================================================
---------------------------------------------------------------------------------
-Command: show version
-Exit Code: 0
-Output:
----8<---
-...device output...
----8<---
+name: Example Arbor Exfil
+description: Run read-only ArbOS commands to collect diagnostics
+generated: 2025-10-09T18:00:00Z
+discovery:
+  hosts_content: |
+    127.0.0.1 localhost
+    10.0.0.5 arbos-leader
+  discovered_hosts:
+    - 127.0.0.1
+    - 10.0.0.5
+runs:
+  - host: 10.0.0.5
+    results:
+      - title: Show version
+        command: show version
+        shell: /bin/comsh
+        exit_code: 0
+        output: |
+          ...device output...
 ```
 
 ### Host Discovery
@@ -143,13 +134,43 @@ commands: []
 The output will include YAML like:
 
 ```
-... header ...
---------------------------------------------------------------------------------
-Discovered Hosts:
-127.0.0.1
-10.0.0.5
-10.0.0.23
+name: Discovery Only
+description: Capture /etc/hosts and list hosts
+generated: 2025-10-09T18:00:00Z
+discovery:
+  discovered_hosts:
+    - 127.0.0.1
+    - 10.0.0.5
+    - 10.0.0.23
 ```
+
+### Verify manifest
+Validate a manifest without running any commands:
+
+```
+./arbor-exfil verify --manifest manifests/inspection_report.yaml
+# prints: Manifest OK (or an error describing problems)
+```
+
+Validation includes required fields (`name`, `description`), that each listed command has a non-empty `command`, and when `commands` are present each has a non-empty `shell`.
+
+### Install keys
+Provision an `arbor-exfil` user and install a provided SSH public key on all discovered non-loopback hosts. The manifest’s `ssh_host` leader is used for host discovery; `--target` and `--user` may be omitted if present in the manifest.
+
+```
+./arbor-exfil install \
+  --manifest manifests/inspection_report.yaml \
+  --install-pubkey ~/.ssh/arbor-exfil.pub \
+  --strict-host-key=false
+```
+
+Details:
+- Connects to the leader to read `/etc/hosts` and parse IPs.
+- Filters loopback addresses (both `127.*` and `::1`) for install only.
+- Dials each discovered host using the provided SSH credentials, then:
+  - Creates user `arbor-exfil` if missing (`useradd` or `adduser`).
+  - Creates `~arbor-exfil/.ssh`, appends the given public key to `authorized_keys`, and fixes permissions.
+- Uses `sudo -n` for non-interactive privilege elevation on the remote.
 
 ### No-op mode
 - Use `--noop` to preview what would run without executing on the remote.
@@ -166,3 +187,11 @@ Discovered Hosts:
 - If a command times out, the SSH connection is closed, reconnected once, and a new persistent session is established
   before continuing with remaining commands.
 - When `ssh_host` is present in the manifest, it is used only when the corresponding CLI flags are omitted; CLI values take precedence. If `ssh_host.ip` lacks a port, `:22` is assumed.
+
+### yq examples
+- List discovered hosts:
+  - `yq '.discovery.discovered_hosts[]' output.yaml`
+- List commands with host and exit code:
+  - `yq '.runs[] as $r | $r.results[] | {host: $r.host, command: .command, exit: .exit_code}' output.yaml`
+- Extract output for a specific titled command:
+  - `yq -r '.runs[].results[] | select(.title=="Show version") | .output' output.yaml`

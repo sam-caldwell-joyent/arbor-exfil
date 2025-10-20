@@ -6,6 +6,8 @@ import (
     "github.com/stretchr/testify/require"
 )
 
+// TestManifest_YAML_Unmarshal_Structure verifies that top-level manifest fields
+// and a basic command decode correctly from YAML. Assumes minimal YAML.
 func TestManifest_YAML_Unmarshal_Structure(t *testing.T) {
     var m manifest
     data := []byte("name: N\ndescription: D\ncommands:\n  - command: x\n")
@@ -16,6 +18,8 @@ func TestManifest_YAML_Unmarshal_Structure(t *testing.T) {
     require.Equal(t, "x", m.Commands[0].Command)
 }
 
+// TestManifest_YAML_SSHHost_Optional verifies that the optional ssh_host
+// structure decodes when present, providing defaults for run/install.
 func TestManifest_YAML_SSHHost_Optional(t *testing.T) {
     var m manifest
     data := []byte("name: N\ndescription: D\nssh_host:\n  ip: 10.0.0.1\n  user: bob\ncommands:\n  - command: x\n")

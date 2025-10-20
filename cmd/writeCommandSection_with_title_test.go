@@ -7,6 +7,9 @@ import (
     "gopkg.in/yaml.v3"
 )
 
+// TestYAMLCommand_WithTitle verifies that a command result with a title is
+// serialized into the YAML report and appears under the correct host/run.
+// Assumes in-memory buffer for writing.
 func TestYAMLCommand_WithTitle(t *testing.T) {
     rep := newYAMLReport(&manifest{Name: "N", Description: "D"})
     rep.addResult("child-1", yamlCmdResult{Title: "My Task", Command: "echo 1", ExitCode: 0, Output: "ok\n"})

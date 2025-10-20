@@ -11,7 +11,11 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-// dialSSH establishes an SSH client connection with options
+// dialSSH establishes an SSH client connection to target using the provided
+// authentication methods and host key strategy. It honors a connection timeout
+// and attempts agent, password, and key-based auth based on inputs.
+// When strictHost is true, the knownHostsPath must exist and is used to verify
+// host keys; otherwise host keys are accepted without verification.
 func dialSSH(target, user, password, keyPath, passphrase, knownHostsPath string, strictHost bool, dialTimeout time.Duration) (*ssh.Client, error) {
 	var auths []ssh.AuthMethod
 

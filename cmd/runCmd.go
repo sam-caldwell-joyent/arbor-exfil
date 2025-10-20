@@ -12,6 +12,10 @@ import (
     "github.com/spf13/cobra"
 )
 
+// runCmd executes the primary workflow: connects to the leader, performs host
+// discovery, and when commands are present executes them across all discovered
+// hosts using a single persistent PTY shell per connection. Results are written
+// to a structured YAML report. With --noop, it only prints planned commands.
 var runCmd = &cobra.Command{
     Use:   "run",
     Short: "Execute manifest-driven collection run",
@@ -231,4 +235,3 @@ var runCmd = &cobra.Command{
         return nil
     },
 }
-

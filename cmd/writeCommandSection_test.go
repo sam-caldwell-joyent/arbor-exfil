@@ -7,6 +7,9 @@ import (
     "gopkg.in/yaml.v3"
 )
 
+// TestYAMLCommandResult_Dedicated verifies that adding multiple command results
+// to the report serializes correctly, including exit code, output, timeout, and
+// error fields. Assumes a single run with implicit host.
 func TestYAMLCommandResult_Dedicated(t *testing.T) {
     rep := newYAMLReport(&manifest{Name: "N", Description: "D"})
     rep.addResult("", yamlCmdResult{Command: "x", ExitCode: 0, Output: "hello\n"})

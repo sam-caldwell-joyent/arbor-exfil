@@ -9,6 +9,9 @@ import (
     "github.com/spf13/cobra"
 )
 
+// verifyCmd validates a manifest file without performing any network activity.
+// It checks core schema requirements and enforces that every command, when
+// present, explicitly declares the shell path used during execution.
 var verifyCmd = &cobra.Command{
     Use:   "verify",
     Short: "Validate a manifest YAML file",
@@ -32,4 +35,3 @@ var verifyCmd = &cobra.Command{
         return nil
     },
 }
-

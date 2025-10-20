@@ -9,6 +9,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+// init configures the root command's persistent flags, binds them to environment
+// variables via Viper, and registers all subcommands. This wiring ensures a
+// consistent configuration surface across run/verify/install and keeps
+// environment overrides predictable for operators.
 func init() {
     // Persistent flags (inherited by subcommands like `run`)
     rootCmd.PersistentFlags().StringVarP(&cfgTarget, "target", "t", "", "ArbOS target FQDN/IP:port (e.g., tms.example.com:22)")

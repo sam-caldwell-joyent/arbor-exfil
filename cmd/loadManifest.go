@@ -7,7 +7,11 @@ import (
 	"strings"
 )
 
-// loadManifest reads and validates the YAML manifest
+// loadManifest reads and validates the YAML manifest, ensuring the presence of
+// required top-level fields (name, description) and that any provided commands
+// have a non-empty command string. Shell validation is performed by callers
+// when necessary (e.g., run/verify) because some flows (discovery-only) do not
+// require commands.
 func loadManifest(path string) (*manifest, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {

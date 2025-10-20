@@ -65,6 +65,10 @@ func startExecEchoServer(t *testing.T) (addr string, stop func()) {
     return ln.Addr().String(), func() { _ = ln.Close(); <-done }
 }
 
+// TestSSHSessionWrapper_CombinedOutput_Integration verifies that the wrapper
+// around *ssh.Session propagates CombinedOutput behavior against a tiny
+// in-process SSH server that echoes its input. Assumes local TCP listen and
+// insecure host key callbacks for test isolation.
 func TestSSHSessionWrapper_CombinedOutput_Integration(t *testing.T) {
     addr, stop := startExecEchoServer(t)
     defer stop()

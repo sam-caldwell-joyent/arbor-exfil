@@ -10,6 +10,10 @@ import (
 type noopClient struct{}
 func (noopClient) NewSession() (session, error) { return nil, nil }
 
+// TestDiscoverChildHosts_SuccessAndError verifies that host discovery returns
+// raw hosts content, parses and filters IPs (dropping ::1), and propagates
+// errors while preserving raw output and exit code. Assumes runRemoteCommandFunc
+// is stubbed and no real SSH connection occurs.
 func TestDiscoverChildHosts_SuccessAndError(t *testing.T) {
     origRun := runRemoteCommandFunc
     t.Cleanup(func() { runRemoteCommandFunc = origRun })
@@ -36,4 +40,3 @@ func TestDiscoverChildHosts_SuccessAndError(t *testing.T) {
     if string(raw) != "oops" { t.Fatalf("preserve raw on error") }
     if ips != nil { t.Fatalf("ips should be nil on error") }
 }
-

@@ -5,7 +5,8 @@ import (
     "gopkg.in/yaml.v3"
 )
 
-// yamlUnmarshalImpl is separated for clarity/testability
+// yamlUnmarshalImpl unmarshals YAML into out. It is separated from the wrapper
+// to make it easy to stub in tests if ever needed.
 func yamlUnmarshalImpl(b []byte, out any) error {
     if err := yaml.Unmarshal(b, out); err != nil {
         return fmt.Errorf("yaml unmarshal: %w", err)
@@ -13,7 +14,9 @@ func yamlUnmarshalImpl(b []byte, out any) error {
     return nil
 }
 
-// UnmarshalYAML supports both "command" and "cmd" keys for flexibility
+// UnmarshalYAML implements custom decoding for commandEntry to support both
+// "command" and legacy "cmd" keys and to keep future schema evolution
+// localized to this function.
 func (c *commandEntry) UnmarshalYAML(value *yaml.Node) error {
     // Define a helper structure with both fields
     var aux struct {

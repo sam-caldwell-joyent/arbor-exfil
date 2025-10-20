@@ -10,6 +10,10 @@ import (
     "time"
 )
 
+// TestNoop_WritesPlannedCommandsToDebugOut verifies that when --noop is set,
+// the CLI writes the expanded per-host command lines to debug.out and still
+// emits a YAML report containing discovery results. Assumes stubbed dial/run
+// functions and a manifest specifying shells for commands.
 func TestNoop_WritesPlannedCommandsToDebugOut(t *testing.T) {
     resetConfig()
     origDial := dialSSHFunc

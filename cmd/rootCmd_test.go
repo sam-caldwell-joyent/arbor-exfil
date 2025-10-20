@@ -58,6 +58,9 @@ func resetConfig() {
     cfgConnTimeout = 0
 }
 
+// TestRootExecute_Success verifies that the run subcommand executes multiple
+// commands, writes a YAML report, and captures mixed success/failure results.
+// Assumes SSH dial and command execution are stubbed and no real network.
 func TestRootExecute_Success(t *testing.T) {
     resetConfig()
     // Stub SSH dial and command execution
@@ -129,6 +132,9 @@ commands:
     require.True(t, have1)
 }
 
+// TestRootExecute_UsesManifestSSHHostDefaults verifies that when target/user
+// flags are not provided, the CLI falls back to manifest.ssh_host defaults and
+// still writes a YAML report. Assumes stubbed dial/run.
 func TestRootExecute_UsesManifestSSHHostDefaults(t *testing.T) {
     resetConfig()
     // Capture target/user passed to dial
@@ -182,6 +188,8 @@ commands:
     require.Equal(t, "echo hello", rep.Runs[0].Results[0].Command)
 }
 
+// TestRootExecute_WritesTitleHeading verifies that per-command titles from the
+// manifest are included in the YAML results. Assumes stubbed dial/run.
 func TestRootExecute_WritesTitleHeading(t *testing.T) {
     resetConfig()
     origDial := dialSSHFunc
@@ -226,6 +234,9 @@ commands:
     require.Equal(t, "echo hi", rep.Runs[0].Results[0].Command)
 }
 
+// TestRootExecute_DialsOnceForMultipleCommands verifies that a single SSH dial
+// is used for multiple commands (one client, multiple sessions). Assumes
+// stubbed dial/run.
 func TestRootExecute_DialsOnceForMultipleCommands(t *testing.T) {
     resetConfig()
     // Stub SSH dial and command execution
@@ -271,6 +282,9 @@ commands:
     require.Equal(t, 1, dialCalls)
 }
 
+// TestRootExecute_TimeoutReconnect verifies that a timeout forcing reconnection
+// results in an additional SSH dial and that the timeout error appears in the
+// YAML report. Assumes stubbed run simulates a deadline exceeded error.
 func TestRootExecute_TimeoutReconnect(t *testing.T) {
     resetConfig()
     origDial := dialSSHFunc
@@ -340,6 +354,9 @@ commands:
     require.True(t, foundTimeout)
 }
 
+// TestRootExecute_ValidationErrors verifies that required flags (target,
+// manifest) are enforced, and that discovery-only mode writes a report with
+// just discovered hosts. Assumes stubbed dial/run for discovery.
 func TestRootExecute_ValidationErrors(t *testing.T) {
     resetConfig()
     // Missing target
@@ -431,6 +448,8 @@ commands: []
     require.Equal(t, "", rep.Discovery.HostsContent)
 }
 
+// TestRootExecute_DialError verifies that a dial error is returned by Execute
+// and not masked. Assumes dialSSHFunc returns an error.
 func TestRootExecute_DialError(t *testing.T) {
     resetConfig()
     // Force dial error
@@ -463,6 +482,9 @@ commands:
     require.Contains(t, err.Error(), "ssh connection failed")
 }
 
+// TestShellQuote duplicates coverage for quoting edge cases to ensure behavior
+// is stable across test suites. Assumes shellQuote escapes and quotes as in the
+// dedicated shellQuote tests.
 func TestShellQuote(t *testing.T) {
     require.Equal(t, "simple", shellQuote("simple"))
     require.Equal(t, "''", shellQuote(""))
@@ -472,6 +494,8 @@ func TestShellQuote(t *testing.T) {
     require.Equal(t, "abc+123", shellQuote("abc+123"))
 }
 
+// TestYAMLReport_Emit verifies that the YAML report writer emits a valid
+// document with discovery and multiple results when populated in memory.
 func TestYAMLReport_Emit(t *testing.T) {
     mf := &manifest{Name: "N", Description: "D"}
     rep := newYAMLReport(mf)
@@ -495,6 +519,8 @@ func TestYAMLReport_Emit(t *testing.T) {
     require.Equal(t, "boom", got.Runs[0].Results[1].Error)
 }
 
+// TestPerCommandTimeout verifies defaulting and parsing behavior of per-command
+// timeout values on commandEntry.
 func TestPerCommandTimeout(t *testing.T) {
     var c commandEntry
     def := 10 * time.Second
@@ -505,6 +531,8 @@ func TestPerCommandTimeout(t *testing.T) {
     require.Equal(t, 1*time.Second, c.perCommandTimeout(def))
 }
 
+// TestDialSSH_StrictHostKeyMissingKnownHosts ensures strict host-key checking
+// errors when known_hosts is missing.
 func TestDialSSH_StrictHostKeyMissingKnownHosts(t *testing.T) {
     // Ensure we fail closed when strict host key and no known_hosts file.
     _, err := dialSSH("127.0.0.1:22", "u", "", "", "", filepath.Join(t.TempDir(), "nope"), true, 100*time.Millisecond)
@@ -512,6 +540,8 @@ func TestDialSSH_StrictHostKeyMissingKnownHosts(t *testing.T) {
     require.Contains(t, err.Error(), "known_hosts file not found")
 }
 
+// TestLoadManifest_AndAliasCmd verifies the legacy 'cmd' alias for 'command'
+// is accepted and args are preserved.
 func TestLoadManifest_AndAliasCmd(t *testing.T) {
     tmp := t.TempDir()
     p := writeTemp(t, tmp, "m.yaml", `
@@ -530,6 +560,8 @@ commands:
     require.Equal(t, "show version arg1 'arg 2'", mf.Commands[0].line())
 }
 
+// TestEnvOverrides_Initialize verifies env var overrides are applied during
+// initialization (without requiring full command success).
 func TestEnvOverrides_Initialize(t *testing.T) {
     resetConfig()
     t.Setenv("ARBOR_EXFIL_PASSWORD", "secret")
@@ -546,6 +578,8 @@ func TestEnvOverrides_Initialize(t *testing.T) {
     require.Equal(t, "pp", cfgPassphrase)
 }
 
+// TestAdminUserRejected_ErrorReturned verifies that using the admin username
+// returns a specific error and prevents execution.
 func TestAdminUserRejected_ErrorReturned(t *testing.T) {
     resetConfig()
     tmp := t.TempDir()
@@ -570,6 +604,8 @@ commands:
     require.True(t, errors.Is(err, errAdminUser))
 }
 
+// TestExecute_AdminUser_PrintsStdoutAndExit1 verifies Execute prints a message
+// to stdout and exits with code 1 when user=admin is provided.
 func TestExecute_AdminUser_PrintsStdoutAndExit1(t *testing.T) {
     resetConfig()
     tmp := t.TempDir()
@@ -614,6 +650,8 @@ commands:
     require.Equal(t, 1, code)
 }
 
+// TestRootExecute_OutputDirCreationError verifies that an error creating the
+// output directory is returned with a helpful message.
 func TestRootExecute_OutputDirCreationError(t *testing.T) {
     resetConfig()
     // Create a file where a directory is expected
@@ -642,6 +680,8 @@ commands:
     require.Contains(t, err.Error(), "failed to create output dir")
 }
 
+// TestDialSSH_StrictHostKeyWithKnownHosts verifies that providing known_hosts
+// proceeds past host-key setup before failing on connect.
 func TestDialSSH_StrictHostKeyWithKnownHosts(t *testing.T) {
     // With a present known_hosts file, we should pass host key setup and then
     // likely fail on connect (which is fine for coverage).
@@ -651,11 +691,13 @@ func TestDialSSH_StrictHostKeyWithKnownHosts(t *testing.T) {
     require.Error(t, err)
 }
 
+// TestLoadSigner_FileNotFound verifies an error for a missing private key path.
 func TestLoadSigner_FileNotFound(t *testing.T) {
     _, err := loadSigner(filepath.Join(t.TempDir(), "missing_key"), "")
     require.Error(t, err)
 }
 
+// TestLoadSigner_RSAKey_Success verifies loading an RSA private key succeeds.
 func TestLoadSigner_RSAKey_Success(t *testing.T) {
     tmp := t.TempDir()
     // Generate a small RSA key for testing
@@ -669,6 +711,8 @@ func TestLoadSigner_RSAKey_Success(t *testing.T) {
     require.NotNil(t, s.PublicKey())
 }
 
+// TestDialSSH_AuthMethodsAssembly verifies auth methods are assembled from
+// agent and key material when present.
 func TestDialSSH_AuthMethodsAssembly(t *testing.T) {
     // Set SSH_AUTH_SOCK to a non-existent path to exercise agent branch
     t.Setenv("SSH_AUTH_SOCK", filepath.Join(t.TempDir(), "no.sock"))
@@ -706,6 +750,8 @@ func (c *fakeClient) NewSession() (session, error) {
     return c.sess, nil
 }
 
+// TestRunRemoteCommand_Success verifies successful stdout and exit code 0 and
+// that the session is closed.
 func TestRunRemoteCommand_Success(t *testing.T) {
     s := &fakeSession{out: []byte("OK\n"), err: nil}
     out, code, err := runRemoteCommand(&fakeClient{sess: s}, "echo OK", 0)
@@ -715,6 +761,8 @@ func TestRunRemoteCommand_Success(t *testing.T) {
     require.True(t, s.closed)
 }
 
+// TestRunRemoteCommand_Timeout verifies a deadline exceeded error returns -1
+// and nil output.
 func TestRunRemoteCommand_Timeout(t *testing.T) {
     s := &fakeSession{out: []byte("SLOW\n"), delay: 200 * time.Millisecond}
     out, code, err := runRemoteCommand(&fakeClient{sess: s}, "sleep", 10*time.Millisecond)
@@ -724,6 +772,8 @@ func TestRunRemoteCommand_Timeout(t *testing.T) {
     require.Nil(t, out)
 }
 
+// TestRunRemoteCommand_NewSessionError verifies that failing to create a new
+// session returns error and -1 exit code.
 func TestRunRemoteCommand_NewSessionError(t *testing.T) {
     out, code, err := runRemoteCommand(&fakeClient{newErr: errors.New("no session")}, "cmd", 0)
     require.Error(t, err)
@@ -731,6 +781,8 @@ func TestRunRemoteCommand_NewSessionError(t *testing.T) {
     require.Nil(t, out)
 }
 
+// TestRunRemoteCommand_CommandError_NoExitCode verifies that command error
+// without exit code returns -1 while preserving stdout.
 func TestRunRemoteCommand_CommandError_NoExitCode(t *testing.T) {
     s := &fakeSession{out: []byte("oops\n"), err: errors.New("boom")}
     out, code, err := runRemoteCommand(&fakeClient{sess: s}, "cmd", 0)

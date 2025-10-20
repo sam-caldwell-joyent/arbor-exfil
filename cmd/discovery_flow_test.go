@@ -10,6 +10,10 @@ import (
     "time"
 )
 
+// TestDiscovery_WritesSection_AndChildHeaders verifies that the run subcommand
+// performs discovery, records the discovered hosts (excluding loopback), and
+// then runs commands for each host using the specified shell. Assumes stubbed
+// dial/run and a manifest with ssh_host defaults.
 func TestDiscovery_WritesSection_AndChildHeaders(t *testing.T) {
     resetConfig()
     origDial := dialSSHFunc

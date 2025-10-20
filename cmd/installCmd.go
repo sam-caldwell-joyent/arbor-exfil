@@ -10,6 +10,11 @@ import (
     "github.com/spf13/cobra"
 )
 
+// installCmd provisions an `arbor-exfil` user and installs a provided SSH
+// public key on all discovered non-loopback hosts. It connects to the leader
+// defined in the manifest (or CLI), performs discovery via /etc/hosts, filters
+// out loopback addresses for this operation, then SSHes into each host and
+// performs idempotent setup using sudo -n.
 var installCmd = &cobra.Command{
     Use:   "install",
     Short: "Create arbor-exfil user and install SSH key on discovered hosts",
@@ -135,4 +140,3 @@ var installCmd = &cobra.Command{
         return nil
     },
 }
-

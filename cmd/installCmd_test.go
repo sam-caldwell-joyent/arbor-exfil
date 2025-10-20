@@ -9,6 +9,10 @@ import (
     "golang.org/x/crypto/ssh"
 )
 
+// TestInstall_FiltersLoopbacks_AndInstallsKey verifies that the install
+// subcommand performs discovery on the leader, filters loopback addresses, and
+// issues install commands (via sudo) to each discovered host. Assumes stubbed
+// dial/run functions and a temporary manifest and public key file.
 func TestInstall_FiltersLoopbacks_AndInstallsKey(t *testing.T) {
     resetConfig()
     tmp := t.TempDir()
@@ -65,6 +69,9 @@ ssh_host:
     require.True(t, foundInstall)
 }
 
+// TestInstall_RequiresManifest_AndPubkey verifies that the install subcommand
+// enforces required flags: --manifest and --install-pubkey must be provided.
+// Assumes default rootCmd config and no network dependencies.
 func TestInstall_RequiresManifest_AndPubkey(t *testing.T) {
     resetConfig()
     rootCmd.SetArgs([]string{"install"})

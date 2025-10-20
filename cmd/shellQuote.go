@@ -2,7 +2,10 @@ package cmd
 
 import "strings"
 
-// shellQuote minimally quotes an argument for POSIX shell
+// shellQuote minimally quotes an argument for POSIX shells. It leaves common
+// safe characters unquoted and uses single-quoting with the standard `'\''`
+// escape for embedded single quotes. The result is suitable for building
+// robust remote command lines.
 func shellQuote(s string) string {
 	if s == "" {
 		return "''"

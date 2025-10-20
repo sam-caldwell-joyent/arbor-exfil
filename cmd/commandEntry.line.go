@@ -2,6 +2,9 @@ package cmd
 
 import "strings"
 
+// line builds the fully rendered command line by appending arguments with
+// safe shell quoting. It does not include sudo/shell wrappers – callers are
+// responsible for wrapping according to their execution context.
 func (c *commandEntry) line() string {
 	if len(c.Args) == 0 {
 		return c.Command

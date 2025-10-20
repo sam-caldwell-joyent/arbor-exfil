@@ -1,13 +1,20 @@
 package cmd
 
 import (
-	"context"
-	"errors"
-	"time"
+    "context"
+    "errors"
+    "time"
 
 	"golang.org/x/crypto/ssh"
 )
 
+// runRemoteCommand executes cmd on a new session obtained from client and
+// returns the combined output, exit code, and error. When timeout is > 0, the
+// operation is bounded and returns context.DeadlineExceeded on timeout.
+//
+// For persistent sessions (backed by a PTY shell) we prefer an explicit exit
+// code via the optional LastExitCode interface; otherwise we derive it from
+// ssh.ExitError when available.
 func runRemoteCommand(client sessionClient, cmd string, timeout time.Duration) ([]byte, int, error) {
 	type result struct {
 		out      []byte

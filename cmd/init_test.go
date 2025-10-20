@@ -6,6 +6,9 @@ import (
     "github.com/stretchr/testify/require"
 )
 
+// TestInit_EnvOverrides_Dedicated verifies that environment variables are read
+// during cobra/viper initialization and populate the corresponding config
+// values. Assumes Execute() triggers OnInitialize without performing network.
 func TestInit_EnvOverrides_Dedicated(t *testing.T) {
     resetConfig()
     t.Setenv("ARBOR_EXFIL_PASSWORD", "s3cr3t")
@@ -22,6 +25,9 @@ func TestInit_EnvOverrides_Dedicated(t *testing.T) {
     require.Equal(t, "pp", cfgPassphrase)
 }
 
+// TestInit_EnvOverrides_AllFlags verifies that all supported environment
+// variables and flags are bound into config, including timeouts and
+// known-hosts via flag. Assumes viper default behavior for hyphenated keys.
 func TestInit_EnvOverrides_AllFlags(t *testing.T) {
     resetConfig()
     t.Setenv("ARBOR_EXFIL_TARGET", "1.2.3.4:22")

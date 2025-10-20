@@ -6,6 +6,9 @@ import (
     "gopkg.in/yaml.v3"
 )
 
+// TestYAMLReport_AddRunMerge_SetDiscoveryVariants verifies discovery fields,
+// run merging by host, and YAML round-trip correctness. Assumes in-memory data
+// and no I/O.
 func TestYAMLReport_AddRunMerge_SetDiscoveryVariants(t *testing.T) {
     mf := &manifest{Name: "N", Description: "D"}
     rep := newYAMLReport(mf)
@@ -36,4 +39,3 @@ func TestYAMLReport_AddRunMerge_SetDiscoveryVariants(t *testing.T) {
     require.NoError(t, yaml.Unmarshal(b, &got))
     require.Equal(t, 2, len(got.Runs))
 }
-

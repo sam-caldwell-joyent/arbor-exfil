@@ -67,6 +67,9 @@ func strconvItoa(n int) string {
     return string(b[i:])
 }
 
+// TestPersistentShell_RunOne_SuccessExit0 verifies that runOne parses the
+// marker-delimited output and returns accumulated stdout with exit code 0.
+// Assumes a fake stdin writer that injects payload and a marker with exit 0.
 func TestPersistentShell_RunOne_SuccessExit0(t *testing.T) {
     pr, pw := io.Pipe()
     fw := &fakeShellWriter{pw: pw, payload: "hello\nworld\n", exit: 0}
@@ -88,6 +91,9 @@ func TestPersistentShell_RunOne_SuccessExit0(t *testing.T) {
     }
 }
 
+// TestPersistentShell_RunOne_NonZero_LongAccum verifies that large outputs are
+// correctly accumulated and that a non-zero exit code is parsed from the
+// marker. Assumes the payload exceeds the internal accumulator flush size.
 func TestPersistentShell_RunOne_NonZero_LongAccum(t *testing.T) {
     // Create payload > 8192 to exercise accum flush path
     var buf bytes.Buffer
@@ -111,6 +117,8 @@ func TestPersistentShell_RunOne_NonZero_LongAccum(t *testing.T) {
     if len(out) < 9000 { t.Fatalf("expected long output, got %d bytes", len(out)) }
 }
 
+// TestParseInt verifies the small helper parseInt handles valid integers and
+// returns an error for invalid input.
 func TestParseInt(t *testing.T) {
     n, err := parseInt("0")
     if err != nil || n != 0 { t.Fatalf("parseInt(0) => %d,%v", n, err) }
@@ -119,6 +127,10 @@ func TestParseInt(t *testing.T) {
     if _, err = parseInt("12x"); err == nil { t.Fatalf("expected error for invalid int") }
 }
 
+// TestPersistentSessionClient_NewSession_AndVirtualSession verifies that a
+// persistent session can expose a virtual session implementing CombinedOutput
+// and LastExitCode, and that Close works without error. Assumes in-memory
+// pipes and a fake writer.
 func TestPersistentSessionClient_NewSession_AndVirtualSession(t *testing.T) {
     pr, pw := io.Pipe()
     fw := &fakeShellWriter{pw: pw, payload: "out\n", exit: 7}
@@ -144,6 +156,8 @@ func TestPersistentSessionClient_NewSession_AndVirtualSession(t *testing.T) {
     if err := s.Close(); err != nil { t.Fatalf("Close error: %v", err) }
 }
 
+// TestMakeNonce verifies that the generated nonce is 12 characters long and
+// contains only lowercase letters and digits.
 func TestMakeNonce(t *testing.T) {
     n := makeNonce()
     if len(n) != 12 { t.Fatalf("nonce length = %d, want 12", len(n)) }
@@ -154,6 +168,8 @@ func TestMakeNonce(t *testing.T) {
     }
 }
 
+// TestPersistentShell_RunOne_BadExitCode verifies that when the marker exit
+// code cannot be parsed, runOne defaults to -1 and returns any captured output.
 func TestPersistentShell_RunOne_BadExitCode(t *testing.T) {
     pr, pw := io.Pipe()
     // exit = -1 will cause parseInt to fail (leading '-') and default to -1
@@ -165,6 +181,8 @@ func TestPersistentShell_RunOne_BadExitCode(t *testing.T) {
     if string(out) != "" { t.Fatalf("expected empty output, got %q", string(out)) }
 }
 
+// TestPersistentShell_RunOne_EOFBeforeMarker verifies that an EOF before the
+// marker is treated as an error with exit code -1 and no output.
 func TestPersistentShell_RunOne_EOFBeforeMarker(t *testing.T) {
     pr, pw := io.Pipe()
     fw := &fakeShellWriter{pw: pw, payload: "partial\n", noMarker: true}
@@ -182,6 +200,9 @@ func TestPersistentShell_RunOne_EOFBeforeMarker(t *testing.T) {
 // Integration test: exercise newPersistentShell using a minimal in-process SSH server
 // that accepts PTY and exec, and simulates a shell by emitting the marker with
 // an exit code after each stdin line.
+// TestNewPersistentShell_Integration verifies end-to-end behavior of
+// newPersistentShell over a minimal in-process SSH server, ensuring PTY request
+// and shell start succeed and that runOne parses the marker with exit 0.
 func TestNewPersistentShell_Integration(t *testing.T) {
     // Start SSH server
     ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -259,6 +280,9 @@ func TestNewPersistentShell_Integration(t *testing.T) {
 
 // Note: PTY/exec denial cases can be timing sensitive across platforms; skip
 // these tests by default to avoid flakiness in CI. To enable locally, remove t.Skip.
+// TestNewPersistentShell_PtyDenied_Fails verifies that a PTY request denied by
+// the server results in an error during persistent shell creation. Marked skip
+// to avoid flakiness in CI.
 func TestNewPersistentShell_PtyDenied_Fails(t *testing.T) {
     t.Skip("skip flaky PTY deny test in CI")
     ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -301,6 +325,8 @@ func TestNewPersistentShell_PtyDenied_Fails(t *testing.T) {
     <-done
 }
 
+// TestNewPersistentShell_ExecDenied_Fails verifies that if exec is denied,
+// starting the shell fails. Marked skip to avoid flakiness in CI.
 func TestNewPersistentShell_ExecDenied_Fails(t *testing.T) {
     t.Skip("skip flaky exec deny test in CI")
     ln, err := net.Listen("tcp", "127.0.0.1:0")

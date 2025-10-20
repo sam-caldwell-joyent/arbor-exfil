@@ -6,7 +6,7 @@
 name: Arbor Inspection Report
 description: Run read-only ArbOS commands to collect diagnostics
 ssh_host:
-  ip: 10.64.243.249
+  ip: leader
   user: arbor-exfil
 commands:
 #  - title: system version
@@ -151,5 +151,4 @@ commands:
 #    command: system timezone
 #    shell: /bin/comsh
 #    timeout: 45s
-
 

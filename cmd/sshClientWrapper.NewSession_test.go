@@ -10,6 +10,9 @@ import (
     "golang.org/x/crypto/ssh"
 )
 
+// TestSSHClientWrapper_NewSession_NilClientError verifies that calling
+// NewSession on a nil underlying client returns an error. Assumes wrapper is
+// zero-valued.
 func TestSSHClientWrapper_NewSession_NilClientError(t *testing.T) {
     var w sshClientWrapper
     s, err := w.NewSession()
@@ -17,6 +20,9 @@ func TestSSHClientWrapper_NewSession_NilClientError(t *testing.T) {
     require.Nil(t, s)
 }
 
+// TestSSHClientWrapper_NewSession_ServerRejects verifies that when the SSH
+// server rejects the session channel open, NewSession returns an error and no
+// session. Assumes an in-process server that rejects the first session.
 func TestSSHClientWrapper_NewSession_ServerRejects(t *testing.T) {
     // Start minimal SSH server that rejects session channel opens
     ln, err := net.Listen("tcp", "127.0.0.1:0")

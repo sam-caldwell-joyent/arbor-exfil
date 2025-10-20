@@ -9,6 +9,9 @@ import (
     "time"
 )
 
+// TestRootExecute_EmptyDiscovery_RunsOnceOnLeader verifies that when discovery
+// returns no child hosts, commands are executed once on the leader and the
+// YAML report records an empty host for that run. Assumes stubbed dial/run.
 func TestRootExecute_EmptyDiscovery_RunsOnceOnLeader(t *testing.T) {
     resetConfig()
     origDial := dialSSHFunc
@@ -47,6 +50,9 @@ commands:
     require.Equal(t, 1, len(rep.Runs[0].Results))
 }
 
+// TestRootExecute_PerCommandTimeout_IncludedInYAML verifies that a per-command
+// timeout specified in the manifest is reflected in the YAML report and that a
+// deadline-exceeded error is recorded when simulated. Assumes stubbed run.
 func TestRootExecute_PerCommandTimeout_IncludedInYAML(t *testing.T) {
     resetConfig()
     origDial := dialSSHFunc

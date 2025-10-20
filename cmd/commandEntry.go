@@ -1,5 +1,10 @@
 package cmd
 
+// commandEntry represents a single command specification from the manifest.
+// It includes the base command, zero or more arguments (which are shell-quoted
+// at execution time), an optional display title, the required shell path that
+// should execute the command on the remote system, and an optional per-command
+// timeout that overrides the global cmd-timeout flag.
 type commandEntry struct {
     // "command" is preferred; "cmd" also accepted during unmarshal
     Command string   `yaml:"command"`

@@ -8,6 +8,9 @@ import (
     "gopkg.in/yaml.v3"
 )
 
+// yamlReport is the top-level structure serialized to the output YAML file.
+// It mirrors the high-level expectations of consumers: metadata, discovery
+// information, and per-host command results.
 type yamlReport struct {
     Name        string         `yaml:"name"`
     Description string         `yaml:"description"`
@@ -16,16 +19,20 @@ type yamlReport struct {
     Runs        []yamlRun      `yaml:"runs,omitempty"`
 }
 
+// yamlDiscovery captures discovery content and the derived list of IPs.
 type yamlDiscovery struct {
     HostsContent   string   `yaml:"hosts_content,omitempty"`
     DiscoveredHosts []string `yaml:"discovered_hosts"`
 }
 
+// yamlRun groups the results for a single host. When discovery yields no
+// hosts, a single run with empty host is used to represent the leader context.
 type yamlRun struct {
     Host    string           `yaml:"host,omitempty"`
     Results []yamlCmdResult  `yaml:"results"`
 }
 
+// yamlCmdResult records the outcome of a single command execution.
 type yamlCmdResult struct {
     Title    string `yaml:"title,omitempty"`
     Command  string `yaml:"command"`
@@ -36,6 +43,8 @@ type yamlCmdResult struct {
     Output   string `yaml:"output"`
 }
 
+// newYAMLReport constructs a report seeded with manifest metadata and a
+// generated timestamp.
 func newYAMLReport(mf *manifest) *yamlReport {
     return &yamlReport{
         Name:        mf.Name,
@@ -44,12 +53,15 @@ func newYAMLReport(mf *manifest) *yamlReport {
     }
 }
 
+// ensureDiscovery lazily initializes the discovery section.
 func (r *yamlReport) ensureDiscovery() {
     if r.Discovery == nil {
         r.Discovery = &yamlDiscovery{DiscoveredHosts: []string{}}
     }
 }
 
+// setDiscovery fills in discovery information. When includeContent is true,
+// the raw /etc/hosts content is embedded; otherwise only the host list is set.
 func (r *yamlReport) setDiscovery(hostsContent []byte, hosts []string, includeContent bool) {
     r.ensureDiscovery()
     if includeContent {
@@ -58,6 +70,7 @@ func (r *yamlReport) setDiscovery(hostsContent []byte, hosts []string, includeCo
     r.Discovery.DiscoveredHosts = hosts
 }
 
+// addRun finds or creates a run entry for the specified host.
 func (r *yamlReport) addRun(host string) *yamlRun {
     // Find existing
     for i := range r.Runs {
@@ -69,11 +82,14 @@ func (r *yamlReport) addRun(host string) *yamlRun {
     return &r.Runs[len(r.Runs)-1]
 }
 
+// addResult appends a command result beneath the specified host run.
 func (r *yamlReport) addResult(host string, res yamlCmdResult) {
     run := r.addRun(host)
     run.Results = append(run.Results, res)
 }
 
+// writeYAMLReport serializes the report to YAML with indentation and writes to
+// the provided writer in a buffered manner for efficiency.
 func writeYAMLReport(w io.Writer, r *yamlReport) error {
     var buf bytes.Buffer
     enc := yaml.NewEncoder(&buf)
@@ -89,4 +105,3 @@ func writeYAMLReport(w io.Writer, r *yamlReport) error {
     }
     return bw.Flush()
 }
-

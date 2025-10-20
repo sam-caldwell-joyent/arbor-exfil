@@ -8,7 +8,10 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// loadSigner loads a private key with optional passphrase
+// loadSigner loads an SSH private key from path, returning a signer suitable
+// for public key authentication. If a passphrase is provided, it attempts to
+// decrypt the key; otherwise it tries an unencrypted parse and reports a clear
+// error when an encrypted key requires a passphrase.
 func loadSigner(path, passphrase string) (ssh.Signer, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
